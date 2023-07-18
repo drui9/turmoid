@@ -1,0 +1,13 @@
+Digital Repo
+Ranked music
+Cava admin
+
+Workflow:
+    Home app actions
+        - List modules
+        - Launch & suspend modules
+        - List apps
+        - Control app io using foreground context
+
+Music Player:
+    Play music after notice changes in registered watched repositories, neural network habit tracker.
