@@ -1,14 +1,12 @@
 import loguru
-from Droid import termux
+from Droid import engine, termux
+from sqlalchemy.orm import Session
 
 class Android:
 	def __init__(self):
 		self.termux = termux
+		self.session = Session(bind=engine)
 		self.logger = loguru.logger
 
-	def whoami(self, data):
-		self.logger.debug(data)
-
 	def start(self):
-		data = termux.query(['termux-audio-info'])
-		print(data)
+		return
