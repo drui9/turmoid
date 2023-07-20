@@ -1,4 +1,5 @@
 import subprocess
+from fabric import Connection
 
 
 class Termux:
@@ -17,22 +18,16 @@ class Termux:
 			return wrapped(fn)
 		return wrapper
 
-	def __init__(self):
-		pass
-
 	def query(self, cmd :list):
-		print(self.handlers)
 		if cmd[0] not in self.handlers:
 			raise RuntimeError(f'Handler for {cmd} not registered!')
 		if (args := tuple(cmd[1:])) and args not in self.handlers[cmd[0]]['args']:
 			raise RuntimeError(f'Invalid arguments for {cmd[0]} : {args}')
 		return self.handlers[cmd[0]]['handler'](' '.join(cmd))
 
-# -- start --
-@Termux.arg()
-@Termux.arg('-h')
-def termux_audio_info(cmd :str):
-	"""Get information about audio capabilities."""
-	return cmd
-	# task = subprocess.run('termux-audio-info', capture_output=True)
-	# return task.stdout.strip(b'\n')
+	def execute(self, cmd):
+		return Connection(self.host, connect_timeout=5).run(cmd, hide=True).stdout
+
+	def __init__(self, host :str):
+		self.host = host
+

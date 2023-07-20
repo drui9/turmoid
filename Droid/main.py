@@ -1,14 +1,14 @@
 import loguru
-from Droid.termux import Termux
+from Droid import termux
 
 class Android:
 	def __init__(self):
-		self.termux=Termux()
+		self.termux = termux
 		self.logger = loguru.logger
 
 	def whoami(self, data):
 		self.logger.debug(data)
 
 	def start(self):
-		data = self.termux.query(['termux-audio-info'])
+		data = termux.query(['termux-audio-info'])
 		print(data)
