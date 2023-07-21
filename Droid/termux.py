@@ -1,5 +1,9 @@
+import threading
 import subprocess
+from Droid import engine
 from fabric import Connection
+from Droid.models import Resource
+from sqlalchemy.orm import Session
 from invoke.exceptions import UnexpectedExit
 
 
@@ -17,7 +21,7 @@ class Termux:
 			return wrapped(fn)
 		return wrapper
 
-	def query(self, cmd :list):
+	def query(self, cmd :list, timeout = 0):
 		if cmd[0] not in self.handlers:
 			raise RuntimeError(f'Handler for {cmd} not registered!')
 		for arg in cmd[1:]:
@@ -28,9 +32,22 @@ class Termux:
 						raise RuntimeError(f'Invalid options {[i for i in cmd[1:] if i not in args]} for {cmd[0]}')
 				if '*' not in args:
 					raise RuntimeError(f'Invalid parameter(s) {[i for i in cmd[1:] if i not in args]} for {cmd[0]}')
-		return self.handlers[cmd[0]]['handler'](' '.join(cmd))
+		#
+		task = threading.Thread(target=self.handlers[cmd[0]]['handler'], args=(' '.join(cmd),))
+		task.name = cmd[0]
+		task.daemon = True
+		task.start()
+		if timeout:
+			pass
+		return
 
 	def execute(self, cmd):
+		resources = self.session.query(Resource).all()
+		if 'localhost' in self.host:
+			t = subprocess.run(cmd, shell=True, capture_output=True)
+			t.check_returncode()
+			return t.stdout.decode()
+		# remote execution
 		try:
 			return self.connection.run(cmd, hide=True).stdout
 		except UnexpectedExit:
@@ -38,6 +55,10 @@ class Termux:
 
 	def __init__(self, host :str):
 		self.host = host
-		self.connection = Connection(self.host, connect_timeout=5)
+		self.session = Session(bind=engine)
+		if 'localhost' in self.host:
+			self.connection = None
+		else:
+			self.connection = Connection(self.host, connect_timeout=5)
 		self.cwd = self.execute('pwd').strip('\n')
 

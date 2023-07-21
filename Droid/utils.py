@@ -76,7 +76,25 @@ def termux_sms_send(cmd :str):
 
 @Termux.arg('-h')
 def termux_info(cmd :str):
-	return termux.execute(cmd)
+	def parse_info(info):
+		parsed = dict()
+		info = info.split('\n')
+		for index, value in enumerate(info):
+			if 'TERMUX_VERSION' in value:
+				parsed.update({'TERMUX_VERSION': value.split('=')[-1].strip()})
+			elif 'upgradable from' in value:
+				if not parsed.get('upgrade'):
+					parsed.update({'upgrade': list()})
+				parsed['upgrade'].append(value)
+			elif 'Android version' in value:
+				parsed.update({'Android version': info[index + 1]})
+			elif 'Device manufacturer:' in value:
+				parsed.update({'Manufacturer': info[index + 1]})
+			elif 'Device model' in value:
+				parsed.update({'Model': info[index + 1]})
+		del info
+		return parsed
+	return parse_info(termux.execute(cmd))
 
 @Termux.arg('-h')
 def termux_camera_info(cmd :str):
@@ -157,7 +175,7 @@ def termux_telephony_call(cmd :str):
 def termux_media_player(cmd :str):
 	return termux.execute(cmd)
 
-@Termux.arg('-h -a -c -d -t *')
+@Termux.arg('-h -a -c -d *')
 def termux_share(cmd :str):
 	return termux.execute(cmd)
 
@@ -183,7 +201,7 @@ def termux_fingerprint(cmd :str):
 		return termux.execute(cmd)
 	return json.loads(termux.execute(cmd))
 
-@Termux.arg('-h -l -t *')
+@Termux.arg('-h -l -t -v -i -d -r -m -n -p *')
 def termux_dialog(cmd :str):
 	if '-h' in cmd or '-l' in cmd:
 		return termux.execute(cmd)
