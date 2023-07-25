@@ -4,12 +4,12 @@ from sqlalchemy.orm import declarative_base
 engine = create_engine('sqlite:///:memory:')
 Base = declarative_base()
 #
-from Droid.models import *
+from .models import *
 Base.metadata.create_all(bind=engine)
 #
-from Droid.termux import Termux
+from .termux import Termux
 termux = Termux('_gateway')
 #
-from Droid.main import Android
-from Droid.utils import *
-from Droid.extras import *
+from .main import Android
+from .utils import *
+from .extras import *

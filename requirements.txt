@@ -2,4 +2,5 @@ fabric
 loguru
 pytube
 requests
+watchdog
 sqlalchemy

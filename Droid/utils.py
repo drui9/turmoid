@@ -112,7 +112,8 @@ def termux_camera_photo(cmd :str):
 			termux.execute(cmd)
 			return os.path.join(termux.cwd, pt)
 
-@Termux.arg('-h --alert-once -c --content --group -i --id --image-path -t --title --vibrate --on-delete --ongoing --priority --action *')
+@Termux.arg('-h --alert-once -c --content --group -i --id --image-path -t --title\
+						--vibrate --on-delete --ongoing --priority --action *')
 def termux_notification(cmd :str):
 	cmd = cmd.replace('\\-', '-')
 	return termux.execute(cmd)
@@ -137,10 +138,6 @@ def termux_clipboard_set(cmd :str):
 
 @Termux.arg()
 def termux_wake_lock(cmd :str):
-	return termux.execute(cmd)
-
-@Termux.arg('on off')
-def termux_torch(cmd :str):
 	return termux.execute(cmd)
 
 @Termux.arg()
