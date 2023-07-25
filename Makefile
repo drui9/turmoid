@@ -1,5 +1,8 @@
+dev:
+	@export host='_gateway';./venv/bin/python droid.py
+
 android:
-	@./venv/bin/python droid.py
+	@export host='localhost';./venv/bin/python droid.py
 
 clean:
 	@rm -rf **/__pycache__

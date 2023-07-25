@@ -51,9 +51,13 @@ class Termux:
 		return t.stdout.decode()
 
 	def __init__(self, host :str):
-		self.host = host
-		if 'localhost' in self.host:
+		self.connected = threading.Event()
+		if 'localhost' in host:
 			self.connection = None
 		else:
-			self.connection = Connection(self.host, connect_timeout=5)
+			try:
+				self.connection = Connection(host, connect_timeout=5)
+				self.connected.set()
+			except Exception as e:
+				self.logger.critical(str(e))
 		self.cwd = self.execute('pwd').strip('\n')
