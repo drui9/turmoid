@@ -3,6 +3,20 @@ from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Float, DateTime
 
 
+class Contact(Base):
+	__tablename__ = 'contact'
+	id = Column(Integer, primary_key=True, autoincrement=True)
+	name = Column(String(32))
+	number = Column(String(24))
+
+class Inbox(Base):
+	__tablename__ = 'sms'
+	id = Column(Integer, primary_key=True, nullable=False)
+	group = Column(String(24), nullable=False)
+	read = Column(Boolean, default=False)
+	time = Column(DateTime, nullable=False)
+	body = Column(String(4096), nullable=False)
+
 class Resource(Base):
 	__tablename__ = 'resource'
 

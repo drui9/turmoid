@@ -1,11 +1,6 @@
 import loguru
 import threading
-import subprocess
-from Droid import engine
 from fabric import Connection
-from Droid.models import Resource
-from sqlalchemy.orm import Session
-from invoke.exceptions import UnexpectedExit
 
 
 class Termux:
@@ -37,27 +32,27 @@ class Termux:
 					invalid = [i for i in cmd[1:] if i not in args]
 					raise RuntimeError(f'Invalid parameter(s) {invalid} for {cmd[0]}')
 		#
-		return self.handlers[cmd[0]]['handler'](' '.join(cmd))
+		try:
+			return True, self.handlers[cmd[0]]['handler'](' '.join(cmd))
+		except Exception:
+			if not self.connected.is_set():
+				return False, 'Remote end disconnected!'
+			return False, None
 
 	def execute(self, cmd):
-		if self.connection:
-			try: # remote execution
-				return self.connection.run(cmd, hide=True).stdout
-			except UnexpectedExit:
-				return 'Command exited with error!'
-		# local execution
-		t = subprocess.run(cmd, shell=True, capture_output=True)
-		t.check_returncode()
-		return t.stdout.decode()
+		try:
+			return self.connection.run(cmd, hide=True).stdout
+		except Exception:
+			if not self.connection.is_connected:
+				self.connected.clear()
+		return
 
 	def __init__(self, host :str):
 		self.connected = threading.Event()
-		if 'localhost' in host:
-			self.connection = None
-		else:
-			try:
-				self.connection = Connection(host, connect_timeout=5)
-				self.connected.set()
-			except Exception as e:
-				self.logger.critical(str(e))
-		self.cwd = self.execute('pwd').strip('\n')
+		try:
+			self.connection = Connection(host, connect_timeout=5)
+			if output := self.execute('pwd'):
+				self.cwd = output.strip('\n')
+			self.connected.set()
+		except Exception as e:
+			self.logger.critical(str(e))

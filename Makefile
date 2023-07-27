@@ -1,8 +1,11 @@
-dev:
-	@export host='_gateway';./venv/bin/python droid.py
+env := venv
+deps := requirements.txt
 
-android:
-	@export host='localhost';./venv/bin/python droid.py
+dev: $(env)
+	@./venv/bin/python droid.py
+
+$(env):
+	python3 -m venv venv;./venv/bin/pip install -r $(deps)
 
 clean:
 	@rm -rf **/__pycache__

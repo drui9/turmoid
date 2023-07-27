@@ -1,5 +1,5 @@
 # Android Personal Assistant
-This is an interface to android functionality using Python3. So much greatness in a single codebase!
+Android personal assistant that runs on pc/server and syncronizes with device using termux ssh
 
 ## `Completed API calls:`
 ```python
@@ -45,7 +45,25 @@ termux.query(['termux-tts-speak', '-p', '0.9', '-r', '1.0', '"Calling mum in a m
 # pair
 data = termux.query(['termux-microphone-record', '-d', '-f', 'sound.m4a']) # record with defaults
 data = termux.query(['termux-microphone-record', '-q']) # stop recording
+```
 
-# use print to show command output after each run
-print(data)
+## `Notes`
+- Commands starting with `data =` have a valid output on success.
+- Some API calls have high latency due to termux implementation.
+- Some functionality is only available if termux is running in foreground, such as when using Termux:Float.
+
+## Algorithms
+```
+"""strategy
+input = [5,2,3,7]
+sorted = [2,3,5,7]
+pick min sleep time = 2
+initialize sleep-total = 2
+
+repeat:
+	function(sleep-total, sorted)
+		do work at (sleeptime total % interval) == 0
+		get wait-time to next work = next time - this time
+		sleep(wait-time)
+		sleeptime total += wait-time
 ```
