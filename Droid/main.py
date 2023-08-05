@@ -44,6 +44,7 @@ class Android:
 	#
 	def __init__(self):
 		self.user = None
+		self.speed = 2
 		return
 
 	@contextmanager
@@ -90,7 +91,7 @@ class Android:
 
 	def execute(self, interval):
 		for task in self.routines[interval]:
-			if task['fails']:
+			if task['fails']: # todo: clear fail count or alert user
 				continue
 			try:
 				task['handler']()
@@ -98,14 +99,16 @@ class Android:
 			except Exception as e:
 				task['fails'] += 1
 				task['reason'] = str(e)
+				if task['fails'] == 1:
+					self.logger.critical(f'Task({task["handler"].__name__} failed: {str(e)}')  # noqa: E501
 		return
 
 	def schedule_routines(self):
 		intervals = sorted(self.routines)
 		lcm = self.get_lcm(intervals)
-		maxim = lcm
+		maxim = lcm * 3
 		sleeptime = 0
-		while True:
+		while self.active.is_set():
 			if sleeptime % lcm == 0:
 				sleeptime = 0
 			# do work
@@ -116,18 +119,17 @@ class Android:
 			nextv = self.get_next(sleeptime + 1, lcm + 1, intervals)
 			timeout = nextv - sleeptime
 			sleeptime += timeout
-			time.sleep(timeout)
-			#
+			time.sleep(timeout / self.speed) # dev speedup
+			# todo: remove maxim limit
 			if not maxim:
 				break
 			maxim -= 1
 		return
 
 	def start(self):
-		self.schedule_routines()
-		return
 		# ---business logic---
-		if not termux.connected.is_set():
+		if not termux.ready():
+			self.logger.critical("Termux not ready!")
 			return
 		# start session
 		with self.authorize():

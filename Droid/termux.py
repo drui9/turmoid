@@ -47,6 +47,9 @@ class Termux:
 				self.connected.clear()
 		return
 
+	def ready(self):
+		return self.connected.is_set()
+
 	def __init__(self, host :str):
 		self.connected = threading.Event()
 		try:

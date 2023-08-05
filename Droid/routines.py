@@ -10,9 +10,9 @@ from loguru import logger
 # def check_sms():
 # 	logger.critical('checking sms inbox')
 
-@Android.routine(3)
-def check_call_log():
-	logger.critical('checking call logs')
+# @Android.routine(3)
+# def check_call_log():
+# 	logger.critical('checking call logs')
 
 @Android.routine(2)
 def check_battery():
