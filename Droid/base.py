@@ -28,6 +28,8 @@ class Base:
 				work.daemon = True
 				work.start()
 				return # Block external calls by not returning function
+			elif interval == -1:
+				return # Execution disabled for this routine
 			#
 			if interval not in cls.routines:
 				cls.routines.update({interval: list()})
@@ -136,11 +138,10 @@ class Base:
 	def schedule_routines(self):
 		if not self.routines:
 			return
-		elif not self.active.is_set():
-			self.logger.info('Sheduler: waiting for active.set()')
-			self.active.wait()
+		self.active.wait()
 		intervals = sorted(self.routines)
 		lcm = self.get_lcm(intervals)
+		self.logger.debug(f'Schedule looping at LCM: {lcm}.')
 		maxim = lcm
 		sleeptime = 0
 		while self.active.is_set():

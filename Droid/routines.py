@@ -1,20 +1,36 @@
-from Droid import droid, engine, Android
-from Droid.models import Battery, Device
+from Droid import droid, engine
 from sqlalchemy.orm import Session
-
+from Droid.models import Battery, Device, Contact
 """
-id = Column(Integer, primary_key=True, autoincrement=True)
-health = Column(String, nullable=False)
-percentage = Column(Integer, nullable=False)
-plugged = Column(String, nullable=False)
-status = Column(String, nullable=False)
-temperature = Column(Float, nullable=False)
-current = Column(Integer, nullable=False)
-device_id = Column(ForeignKey('Android.id'))
-device = relationship('Device', back_populates='battery')
 """
+@droid.routine(120)
+def parse_messages():
+	texts = droid.get('termux-sms-list')
+	droid.logger.critical(len(texts))
 
-@Android.routine(60)
+@droid.routine(-1)
+def parse_contacts():
+	contacts = droid.get('termux-contact-list')
+	with Session(bind=engine) as session:
+		for contact in contacts:
+			num = contact['number'].replace(' ','').replace('-','')
+			name = contact['name'].strip()
+			#
+			cont = Contact()
+			cont.id = num[-8:]
+			cont.name = name
+			cont.number = num
+			if not session.query(Contact).get(cont.id):
+				session.add(cont)
+				# todo: organize call logs and sms with contact = 'unknown'
+		try:
+			session.commit()
+		except Exception as e:
+			droid.logger.exception(e)
+			session.rollback()
+			raise
+
+@droid.routine(-1)
 def check_battery():
 	battinfo = droid.get('termux-battery-status')
 	droid.logger.debug('Checking battery status.')
