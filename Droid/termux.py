@@ -9,6 +9,7 @@ class Termux:
 	#
 	@classmethod
 	def arg(cls, args :str=None):
+		"""Register command handler function."""
 		def wrapper(fn):
 			def wrapped(fn):
 				name = fn.__name__.replace('_', '-')
@@ -18,7 +19,8 @@ class Termux:
 			return wrapped(fn)
 		return wrapper
 
-	def query(self, cmd :list, timeout = 0):
+	def query(self, cmd :list):
+		"""Validate and execute cmd[0] with cmd[1:] arguments"""
 		if cmd[0] not in self.handlers:
 			raise RuntimeError(f'Handler for {cmd} not registered!')
 		for arg in cmd[1:]:
@@ -34,26 +36,31 @@ class Termux:
 		#
 		try:
 			return True, self.handlers[cmd[0]]['handler'](' '.join(cmd))
-		except Exception:
+		except Exception as e:
 			if not self.connected.is_set():
-				return False, 'Remote end disconnected!'
-			return False, None
+				e.add_note('Remote end disconnected!')
+			return False, e
 
 	def execute(self, cmd):
+		"""Execute cmd through termux"""
 		try:
 			return self.connection.run(cmd, hide=True).stdout
-		except Exception:
+		except Exception as e:
 			if not self.connection.is_connected:
+				e.add_note('Disconnected!')
 				self.connected.clear()
-		return
+			raise e
 
 	def ready(self):
+		"""Return True if termux communication is ready"""
 		return self.connected.is_set()
 
-	def __init__(self, host :str):
+	def __init__(self):
+		"""Initialize termux communication"""
 		self.connected = threading.Event()
+		self.cwd = 'undefined'
 		try:
-			self.connection = Connection(host, connect_timeout=5)
+			self.connection = Connection('_gateway', connect_timeout=5)
 			if output := self.execute('pwd'):
 				self.cwd = output.strip('\n')
 			self.connected.set()

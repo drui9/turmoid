@@ -1,8 +1,8 @@
 from Droid.termux import Termux
-from Droid import termux
+from Droid import droid
 
 
 # -- start--
 @Termux.arg()
 def whoami(cmd :str):
-	return termux.execute(cmd).strip('\n')
+	return droid.termux.execute(cmd).strip('\n')

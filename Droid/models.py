@@ -7,10 +7,10 @@ class Contact(Base):
 	__tablename__ = 'contact'
 	id = Column(Integer, primary_key=True, autoincrement=True)
 	name = Column(String(32))
-	number = Column(String(24))
+	number = Column(String(15))
 
-class Inbox(Base):
-	__tablename__ = 'sms'
+class Message(Base):
+	__tablename__ = 'message'
 	id = Column(Integer, primary_key=True, nullable=False)
 	group = Column(String(24), nullable=False)
 	read = Column(Boolean, default=False)
@@ -21,9 +21,8 @@ class Resource(Base):
 	__tablename__ = 'resource'
 
 	id = Column(Integer, primary_key=True, autoincrement=True)
-	name = Column(String, nullable=False)
-	available = Column(Boolean, default=False)
-	latency = Column(Integer, default=0)
+	name = Column(String, unique=True)
+	balance = Column(Integer, default=0)
 	last_checked = Column(DateTime, nullable=True)
 	owner_id = Column(ForeignKey('Android.id'))
 	owner = relationship('Device', back_populates='resources')

@@ -1,23 +1,34 @@
-import sys
 import time
 import math
-import loguru
 import threading
 from datetime import datetime
 from Droid.models import Device
-from Droid import engine, termux
+from Droid import engine, Termux
 from sqlalchemy.orm import Session
 from contextlib import contextmanager
 
 
-class Android:
+class Base:
 	routines = dict()
-	logger = loguru.logger
+	termux = Termux()
+	logger = Termux.logger
+	need_fore = threading.Event()
 	active = threading.Event()
+	foreground = threading.Event()
+
 	# add new routines
 	@classmethod
 	def routine(cls, interval):
+		"""Add a routine to execute at each interval time"""
+		"""Execute routine in daemon thread if interval == 0"""
 		def wrapper(fn):
+			if not interval:
+				work = threading.Thread(target=fn)
+				work.name = fn.__name__
+				work.daemon = True
+				work.start()
+				return # Block external calls by not returning function
+			#
 			if interval not in cls.routines:
 				cls.routines.update({interval: list()})
 			# append routine
@@ -30,41 +41,60 @@ class Android:
 			cls.routines[interval].append(routine)
 			return fn
 		return wrapper
-	#
-	@classmethod
-	def get(cls, command :list):
-		ok, data = termux.query(command)
-		if not ok:
-			msg = data or 'Prev command exited with error. Shutting down'
-			cls.logger.critical(msg)
-			if not cls.active.is_set():
-				sys.exit(0)
-			cls.active.clear()
-		return data
-	#
+
+	# -- instance methods ---
 	def __init__(self):
+		self.speed = 20
 		self.user = None
-		self.speed = 2
 		return
+
+	def get(self, command :str):
+		"""A convenience call to self.termux.query for calls without arguments"""
+		ok, data = self.termux.query([command])
+		if not ok:
+			raise data
+		return data
+
+	def get_fore(self, block=True):
+		self.need_fore.set()
+		self.logger.info('Foreground requested.')
+		while block:
+			if self.foreground.wait(timeout=12):
+				return True
+		return self.foreground.wait(timeout=2)
+
+	def fingerprint(self):
+		return True # dev feature
+		#
+		self.logger.info('Requesting fingerprint.')
+		if self.get_fore():
+			cmd = 'termux-fingerprint -t "Authenticate Droid"'
+			msg = 'Touch fingerprint sensor to continue.'
+			ok, resp = self.termux.query([*cmd.split(' '), '-d', f'"{msg}"'])
+			if not ok or (res := resp['auth_result']) != 'AUTH_RESULT_SUCCESS':
+				self.logger.critical(f'Fingerprint auth failed: {res}')
+				return
+			self.logger.info('Fingerprint auth success.')
+			return True
 
 	@contextmanager
 	def authorize(self):
 		session = Session(bind=engine)
-		user = self.get(['whoami'])
+		user = self.get('whoami')
 		self.logger.info(f'Initializing user: {user}')
 		device = session.query(Device).filter_by(user=user).first()
 		if not device:
 			# -- run authorization
-			# cmd = 'termux-fingerprint -t "Droid"'
-			# msg = 'Touch fingerprint sensor to continue.'
-			# auth = self.get([*cmd.split(' '), '-d', f'"{msg}"'])
-			# if auth['auth_result'] != 'AUTH_RESULT_SUCCESS':
-			# 	yield
-			# 	return
+			if not self.fingerprint():
+				yield
+				return
 			# -- load device info
 			device = Device()
 			device.user = user
-			data = self.get(['termux-info'])
+			#
+			self.logger.info('Getting device info...')
+			data = self.get('termux-info')
+			#
 			device.version = data['Android version']
 			device.termux_version = data['TERMUX_VERSION']
 			device.manufacturer = data['Manufacturer']
@@ -104,9 +134,14 @@ class Android:
 		return
 
 	def schedule_routines(self):
+		if not self.routines:
+			return
+		elif not self.active.is_set():
+			self.logger.info('Sheduler: waiting for active.set()')
+			self.active.wait()
 		intervals = sorted(self.routines)
 		lcm = self.get_lcm(intervals)
-		maxim = lcm * 3
+		maxim = lcm
 		sleeptime = 0
 		while self.active.is_set():
 			if sleeptime % lcm == 0:
@@ -124,17 +159,4 @@ class Android:
 			if not maxim:
 				break
 			maxim -= 1
-		return
-
-	def start(self):
-		# ---business logic---
-		if not termux.ready():
-			self.logger.critical("Termux not ready!")
-			return
-		# start session
-		with self.authorize():
-			if not self.active.is_set():
-				self.logger.critical('Authorization failed!')
-				return
-			self.schedule_routines()
 		return
