@@ -20,7 +20,7 @@ class Base:
 	@classmethod
 	def routine(cls, interval):
 		"""Add a routine to execute at each interval time"""
-		"""Execute routine in daemon thread if interval == 0"""
+		"""Execute routine as daemon thread if interval == 0"""
 		def wrapper(fn):
 			if not interval:
 				work = threading.Thread(target=fn)
@@ -46,7 +46,7 @@ class Base:
 
 	# -- instance methods ---
 	def __init__(self):
-		self.speed = 20
+		self.speed = 1
 		self.user = None
 		return
 
@@ -59,14 +59,13 @@ class Base:
 
 	def get_fore(self, block=True):
 		self.need_fore.set()
-		self.logger.info('Foreground requested.')
 		while block:
 			if self.foreground.wait(timeout=12):
 				return True
 		return self.foreground.wait(timeout=2)
 
 	def fingerprint(self):
-		return True # dev feature
+		return True # todo: remove dev feature
 		#
 		self.logger.info('Requesting fingerprint.')
 		if self.get_fore():
@@ -126,13 +125,16 @@ class Base:
 			if task['fails']: # todo: clear fail count or alert user
 				continue
 			try:
+				self.logger.debug(f'Running({task["handler"].__name__})')
 				task['handler']()
 				task['last_run'] = datetime.now()
 			except Exception as e:
 				task['fails'] += 1
 				task['reason'] = str(e)
 				if task['fails'] == 1:
-					self.logger.critical(f'Task({task["handler"].__name__} failed: {str(e)}')  # noqa: E501
+					e.add_note(f'Task({task["handler"].__name__}')
+					if str(e).strip() != '404':
+						self.logger.exception(e)
 		return
 
 	def schedule_routines(self):
@@ -141,8 +143,8 @@ class Base:
 		self.active.wait()
 		intervals = sorted(self.routines)
 		lcm = self.get_lcm(intervals)
-		self.logger.debug(f'Schedule looping at LCM: {lcm}.')
-		maxim = lcm
+		self.logger.info(f'Looping at {lcm}')
+		maxim = lcm * 10
 		sleeptime = 0
 		while self.active.is_set():
 			if sleeptime % lcm == 0:

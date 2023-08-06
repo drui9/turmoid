@@ -1,6 +1,10 @@
 from Droid import Base
+from datetime import timedelta
 from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Float, DateTime
+from sqlalchemy import (
+		Column, Integer, String, ForeignKey,
+		Boolean, Float, DateTime, Interval
+	)
 
 
 class Contact(Base):
@@ -16,22 +20,33 @@ class Contact(Base):
 
 class CallLog(Base):
 	__tablename__ = 'call_log'
-	id = Column(Integer, primary_key=True, autoincrement=True)
+	id = Column(DateTime, primary_key=True, nullable=False)
 	type = Column(String(24), nullable=False) # INCOMING, MISSED, OUTGOING
-	time = Column(DateTime, nullable=False)
-	duration = Column(Integer, default=0)
+	duration = Column(Interval, default=timedelta(0))
+	number = Column(String(24),  nullable=False)
 	contact_id = Column(ForeignKey('contact.id'))
 	contact = relationship('Contact', back_populates='call_logs')
+
+	def __repr__(self):
+		if self.contact:
+			return f'CallLog({self.contact}, duration: {self.duration})'
+		return f'CallLog({self.number}, duration: {self.duration})'
 
 class Message(Base):
 	__tablename__ = 'message'
 	id = Column(Integer, primary_key=True, nullable=False)
 	type = Column(String(24), nullable=False) # inbox, sent
 	read = Column(Boolean, default=False) # True, False
+	sender = Column(String(24), nullable=False)
 	time = Column(DateTime, nullable=False)
 	body = Column(String(4096), nullable=False)
 	contact_id = Column(ForeignKey('contact.id'))
 	contact = relationship('Contact', back_populates='messages')
+
+	def __repr__(self):
+		if self.contact:
+			return f'Message({self.contact}, is_read={self.read})'
+		return f'Message({self.sender}, is_read={self.read})'
 
 class Resource(Base):
 	__tablename__ = 'resource'
@@ -66,7 +81,6 @@ class Device(Base):
 	model = Column(String, nullable=False)
 	user = Column(String, nullable=False)
 	admin = Column(String, default="Admin")
-	set_admin = Column(Boolean, default=False)
 	enable_upgrades = Column(Boolean, default=False)
 	battery = relationship('Battery', uselist=False, back_populates='device')
 	resources = relationship('Resource', back_populates='owner')
