@@ -15,6 +15,7 @@ class Base:
 	need_fore = threading.Event()
 	active = threading.Event()
 	foreground = threading.Event()
+	terminate = threading.Event()
 
 	# add new routines
 	@classmethod
@@ -55,14 +56,16 @@ class Base:
 		ok, data = self.termux.query([command])
 		if not ok:
 			raise data
+		self.logger.debug(ok)
 		return data
 
 	def get_fore(self, block=True):
 		self.need_fore.set()
-		while block:
-			if self.foreground.wait(timeout=12):
-				return True
-		return self.foreground.wait(timeout=2)
+		if block:
+			while not self.terminate.is_set():
+				if self.foreground.wait(timeout=6):
+					return True
+		return self.foreground.wait(0)
 
 	def fingerprint(self):
 		return True # todo: remove dev feature
@@ -93,7 +96,6 @@ class Base:
 			device = Device()
 			device.user = user
 			#
-			self.logger.info('Getting device info...')
 			data = self.get('termux-info')
 			#
 			device.version = data['Android version']
@@ -122,6 +124,8 @@ class Base:
 
 	def execute(self, interval):
 		for task in self.routines[interval]:
+			if self.terminate.is_set():
+				return
 			if task['fails']: # todo: clear fail count or alert user
 				continue
 			try:
@@ -140,7 +144,6 @@ class Base:
 	def schedule_routines(self):
 		if not self.routines:
 			return
-		self.active.wait()
 		intervals = sorted(self.routines)
 		lcm = self.get_lcm(intervals)
 		self.logger.info(f'Looping at {lcm}')

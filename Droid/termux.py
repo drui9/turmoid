@@ -1,5 +1,8 @@
+import os
+import invoke
 import loguru
 import threading
+from time import perf_counter
 from fabric import Connection
 
 
@@ -35,7 +38,9 @@ class Termux:
 					raise RuntimeError(f'Invalid parameter(s) {invalid} for {cmd[0]}')
 		#
 		try:
-			return True, self.handlers[cmd[0]]['handler'](' '.join(cmd))
+			st = perf_counter()
+			ret = self.handlers[cmd[0]]['handler'](' '.join(cmd))
+			return f'Latency: {perf_counter() - st:.2f}s' , ret
 		except Exception as e:
 			if not self.connected.is_set():
 				e.add_note('Remote end disconnected!')
@@ -44,12 +49,11 @@ class Termux:
 	def execute(self, cmd):
 		"""Execute cmd through termux"""
 		try:
-			return self.connection.run(cmd, hide=True).stdout
-		except Exception as e:
-			if not self.connection.is_connected:
-				e.add_note('Disconnected!')
-				self.connected.clear()
-			raise e
+			self.logger.debug(f'Executing: {cmd}')
+			cmd = ['timeout 5', cmd]
+			return self.connection.run(' '.join(cmd), hide=True).stdout
+		except invoke.exceptions.UnexpectedExit:
+			raise RuntimeError('Invoke: UnexpectedExit')
 
 	def ready(self):
 		"""Return True if termux communication is ready"""
@@ -58,7 +62,7 @@ class Termux:
 	def __init__(self):
 		"""Initialize termux communication"""
 		self.connected = threading.Event()
-		self.cwd = 'undefined'
+		self.cwd = os.getcwd()
 		try:
 			self.connection = Connection('_gateway', connect_timeout=5)
 			if output := self.execute('pwd'):
