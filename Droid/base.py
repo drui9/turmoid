@@ -60,6 +60,7 @@ class Base:
 		return data
 
 	def get_fore(self, block=True):
+		"""Send foreground request."""
 		self.need_fore.set()
 		if block:
 			while not self.terminate.is_set():
@@ -68,7 +69,8 @@ class Base:
 		return self.foreground.wait(0)
 
 	def fingerprint(self):
-		return True # todo: remove dev feature
+		"""Authenticate fingerprint in foreground"""
+		return True # todo: remove this dev return
 		#
 		self.logger.info('Requesting fingerprint.')
 		if self.get_fore():
@@ -83,6 +85,7 @@ class Base:
 
 	@contextmanager
 	def authorize(self):
+		"""Register termux device with fingerprint auth for 1st run"""
 		session = Session(bind=engine)
 		user = self.get('whoami')
 		self.logger.info(f'Initializing user: {user}')
@@ -111,10 +114,12 @@ class Base:
 		return
 
 	def get_lcm(self, nums):
+		"""Get the least common multiple of List[nums]"""
 		gcd = math.gcd(*nums)
 		return abs(math.prod(nums)) // gcd
 
 	def get_next(self, start, end, intervals):
+		"""Get the index of the upcoming routine handler"""
 		if len(intervals) == 1:
 			return intervals[0]
 		for i in range(start, end):
@@ -123,6 +128,7 @@ class Base:
 					return i
 
 	def execute(self, interval):
+		"""Execute a function routine and handle errors"""
 		for task in self.routines[interval]:
 			if self.terminate.is_set():
 				return
@@ -142,12 +148,12 @@ class Base:
 		return
 
 	def schedule_routines(self):
+		"""Schedule functions to run at registered intervals"""
 		if not self.routines:
 			return
 		intervals = sorted(self.routines)
 		lcm = self.get_lcm(intervals)
 		self.logger.info(f'Looping at {lcm}')
-		maxim = lcm * 10
 		sleeptime = 0
 		while self.active.is_set():
 			if sleeptime % lcm == 0:
@@ -160,9 +166,5 @@ class Base:
 			nextv = self.get_next(sleeptime + 1, lcm + 1, intervals)
 			timeout = nextv - sleeptime
 			sleeptime += timeout
-			time.sleep(timeout / self.speed) # dev speedup
-			# todo: remove maxim limit
-			if not maxim:
-				break
-			maxim -= 1
+			time.sleep(timeout / self.speed) # refresh speedup
 		return

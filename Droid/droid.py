@@ -15,10 +15,6 @@ class Android(Base):
         self.terminate.set()
 
     def start(self):
-        # ---business logic---
-        if not self.termux.ready():
-            self.logger.critical("Termux not ready!")
-            return
         # start session
         with self.authorize():
             if not self.active.is_set():

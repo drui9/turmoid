@@ -1,81 +1,69 @@
-from contextlib import contextmanager
+from json import loads, JSONDecodeError
 from Droid.termux import Termux
 from Droid import droid
-import json
 import os
 
 # -- start --
 @Termux.arg('-h')
-def termux_audio_info(cmd :str):
+def termux_audio_info(output):
 	"""Get information about audio capabilities."""
-	if '-h' in cmd:
-		return droid.termux.execute(cmd)
-	return json.loads(droid.termux.execute(cmd))
+	try:
+		return loads(output)
+	except JSONDecodeError:
+		pass
+	return output
 
 @Termux.arg('-h --send --view --chooser --content-type *')
-def termux_open(cmd :str):
+def termux_open(output):
 	"""Open a file or URL in an external app"""
-	return droid.termux.execute(cmd)
+	return output
 
 @Termux.arg('-h *')
-def termux_fix_shebang(cmd :str):
+def termux_fix_shebang(output):
 	"""Rewrite shebangs in specified files for running under Termux"""
-	return droid.termux.execute(cmd)
+	return output
 
 @Termux.arg('-h')
-def termux_battery_status(cmd :str):
+def termux_battery_status(output):
 	"""Get the status of the device battery."""
-	if '-h' in cmd:
-		return droid.termux.execute(cmd)
-	return json.loads(droid.termux.execute(cmd))
+	try:
+		return loads(output)
+	except JSONDecodeError:
+		pass
+	return output
 
 
 @Termux.arg('-h -a -c -l -s -n *')
-def termux_sensor(cmd :str):
-	"""Get the status of the device battery."""
-	if '-h' in cmd or '-c' in cmd:
-		return droid.termux.execute(cmd)
-	@contextmanager
-	def resource_guard():
-		yield
-		droid.termux.execute('termux-sensor -c')
-	if '-n' in cmd:
-		try:
-			out = list()
-			part = int(cmd.split('-n')[-1].strip().split(' ')[0])
-			with resource_guard():
-				for _ in range(part):
-					resp = droid.termux.execute(cmd.replace(str(part), str(1)))
-					out.append(json.loads(resp))
-			return out
-		except Exception as e:
-			return str(e)
-	return json.loads(droid.termux.execute(cmd))
+def termux_sensor(output):
+	"""Get information about types of sensors as well as live data."""
+	raise NotImplementedError()
 
 @Termux.arg('-h -b -c -g -s *')
-def termux_toast(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_toast(output):
+	return output
 
 @Termux.arg('on off')
-def termux_torch(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_torch(output):
+	return output
 
 @Termux.arg('-h -f -d *')
-def termux_vibrate(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_vibrate(output):
+	return output
 
 @Termux.arg('-h -l -o -t -c -f *')
-def termux_sms_list(cmd :str):
-	if '-h' in cmd:
-		return droid.termux.execute(cmd)
-	return json.loads(droid.termux.execute(cmd))
+def termux_sms_list(output):
+	try:
+		return loads(output)
+	except JSONDecodeError:
+		pass
+	return output
 
 @Termux.arg('-h -n *')
-def termux_sms_send(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_sms_send(output):
+	return output
 
 @Termux.arg('-h')
-def termux_info(cmd :str):
+def termux_info(output):
 	def parse_info(info):
 		parsed = dict()
 		info = info.split('\n')
@@ -94,120 +82,141 @@ def termux_info(cmd :str):
 				parsed.update({'Model': info[index + 1]})
 		del info
 		return parsed
-	return parse_info(droid.termux.execute(cmd))
+	#
+	if not output:
+		raise RuntimeError('termux-info got empty response!')
+	return parse_info(output)
 
 @Termux.arg('-h')
-def termux_camera_info(cmd :str):
-	if '-h' in cmd:
-		return droid.termux.execute(cmd)
-	return json.loads(droid.termux.execute(cmd))
+def termux_camera_info(output):
+	try:
+		return loads(output)
+	except JSONDecodeError:
+		pass
+	return output
 
 @Termux.arg('-h -c *')
-def termux_camera_photo(cmd :str):
-	if '-h' in cmd:
-		return droid.termux.execute(cmd)
-	parts = cmd.split(' ')
+def termux_camera_photo(output):
+	if output:
+		return output
+	parts = output.split(' ')
 	for pt in parts:
 		if '.jpg' in pt:
-			droid.termux.execute(cmd)
 			return os.path.join(droid.termux.cwd, pt)
 
 @Termux.arg('-h --alert-once -c --content --group -i --id --image-path -t --title\
 						--vibrate --on-delete --ongoing --priority --action *')
-def termux_notification(cmd :str):
-	cmd = cmd.replace('\\-', '-')
-	return droid.termux.execute(cmd)
+def termux_notification(output):
+	return output
 
 @Termux.arg('-h *')
-def termux_notification_remove(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_notification_remove(output):
+	return output
 
 @Termux.arg('-h')
-def termux_wifi_connectioninfo(cmd :str):
-	if '-h' in cmd:
-		return droid.termux.execute(cmd)
-	return json.loads(droid.termux.execute(cmd))
+def termux_wifi_connectioninfo(output):
+	try:
+		return loads(output)
+	except JSONDecodeError:
+		pass
+	return output
 
 @Termux.arg('-h')
-def termux_clipboard_get(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_clipboard_get(output):
+	return output
 
 @Termux.arg('-h *')
-def termux_clipboard_set(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_clipboard_set(output):
+	return output
 
 @Termux.arg()
-def termux_wake_lock(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_wake_lock(output):
+	return output
 
 @Termux.arg()
-def termux_wake_unlock(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_wake_unlock(output):
+	return output
 
 @Termux.arg('alarm music notification ring system call *')
-def termux_volume(cmd :str):
-	if len(cmd.split(' ')) != 1:
-		return droid.termux.execute(cmd)
-	return json.loads(droid.termux.execute(cmd))
+def termux_volume(output):
+	try:
+		return loads(output)
+	except JSONDecodeError:
+		pass
+	return output
 
 @Termux.arg('-f -u -l *')
-def termux_wallpaper(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_wallpaper(output):
+	return output
 
 @Termux.arg('auto *')
-def termux_brightness(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_brightness(output):
+	return output
 
 @Termux.arg('-h')
-def termux_telephony_deviceinfo(cmd :str):
-	if '-h' in cmd:
-		return droid.termux.execute(cmd)
-	return json.loads(droid.termux.execute(cmd))
+def termux_telephony_deviceinfo(output):
+	try:
+		return loads(output)
+	except JSONDecodeError:
+		pass
+	return output
 
 @Termux.arg('-h *')
-def termux_telephony_call(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_telephony_call(output):
+	return output
 
 @Termux.arg('help info play pause stop')
-def termux_media_player(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_media_player(output):
+	return output
 
 @Termux.arg('-h -a -c -d *')
-def termux_share(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_share(output):
+	return output
 
 @Termux.arg('-h')
-def termux_contact_list(cmd :str):
-	return json.loads(droid.termux.execute(cmd))
+def termux_contact_list(output):
+	try:
+		return loads(output)
+	except JSONDecodeError:
+		pass
+	return output
 
 @Termux.arg('-h -p -r *')
-def termux_location(cmd :str):
-	if '-h' in cmd:
-		return droid.termux.execute(cmd)
-	return json.loads(droid.termux.execute(cmd))
+def termux_location(output):
+	try:
+		return loads(output)
+	except JSONDecodeError:
+		pass
+	return output
 
 @Termux.arg('-h -l -o *')
-def termux_call_log(cmd :str):
-	if '-h' in cmd:
-		return droid.termux.execute(cmd)
-	return json.loads(droid.termux.execute(cmd))
+def termux_call_log(output):
+	try:
+		return loads(output)
+	except JSONDecodeError:
+		pass
+	return output
 
 @Termux.arg('-h -t -d -s *')
-def termux_fingerprint(cmd :str):
-	if '-h' in cmd:
-		return droid.termux.execute(cmd)
-	return json.loads(droid.termux.execute(cmd))
+def termux_fingerprint(output):
+	try:
+		return loads(output)
+	except JSONDecodeError:
+		pass
+	return output
 
 @Termux.arg('-h -l -t -v -i -d -r -m -n -p *')
-def termux_dialog(cmd :str):
-	if '-h' in cmd or '-l' in cmd:
-		return droid.termux.execute(cmd)
-	return json.loads(droid.termux.execute(cmd))
+def termux_dialog(output):
+	try:
+		return loads(output)
+	except JSONDecodeError:
+		pass
+	return output
 
 @Termux.arg('-h -e -l -n -v -p -r -s *')
-def termux_tts_speak(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_tts_speak(output):
+	return output
 
 @Termux.arg('-h -d -f -l -e -b -r -c -i -q *')
-def termux_microphone_record(cmd :str):
-	return droid.termux.execute(cmd)
+def termux_microphone_record(output):
+	return output

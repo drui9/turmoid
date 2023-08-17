@@ -1,9 +1,8 @@
 import os
-import invoke
 import loguru
-import threading
+import subprocess
 from time import perf_counter
-from fabric import Connection
+from Droid.errors import TermuxAPIError
 
 
 class Termux:
@@ -22,7 +21,7 @@ class Termux:
 			return wrapped(fn)
 		return wrapper
 
-	def query(self, cmd :list):
+	def query(self, cmd :list, cache=False):
 		"""Validate and execute cmd[0] with cmd[1:] arguments"""
 		if cmd[0] not in self.handlers:
 			raise RuntimeError(f'Handler for {cmd} not registered!')
@@ -38,35 +37,39 @@ class Termux:
 					raise RuntimeError(f'Invalid parameter(s) {invalid} for {cmd[0]}')
 		#
 		try:
-			st = perf_counter()
-			ret = self.handlers[cmd[0]]['handler'](' '.join(cmd))
-			return f'Latency: {perf_counter() - st:.2f}s' , ret
+			if cache:
+				ret = self.cache.get(cmd[0]) or self.execute(cmd)
+			else:
+				st = perf_counter()
+				ret = self.execute(cmd)
+				final_ = perf_counter()
+			# cache
+			if cache and cmd[0] not in self.cache:
+				if isinstance(ret, str):
+					self.cache.update({cmd[0], ret})
+					# todo: save and load cache
+			#
+			final_ = f'{cmd[0]} latency: {final_ - st:.2f}sec'
+			return final_, self.handlers[cmd[0]]['handler'](ret)
 		except Exception as e:
-			if not self.connected.is_set():
-				e.add_note('Remote end disconnected!')
+			self.logger.exception(e)
 			return False, e
 
-	def execute(self, cmd):
+	def execute(self, cmd :list, shell=False):
 		"""Execute cmd through termux"""
-		try:
-			self.logger.debug(f'Executing: {cmd}')
-			cmd = ['timeout 5', cmd]
-			return self.connection.run(' '.join(cmd), hide=True).stdout
-		except invoke.exceptions.UnexpectedExit:
-			raise RuntimeError('Invoke: UnexpectedExit')
-
-	def ready(self):
-		"""Return True if termux communication is ready"""
-		return self.connected.is_set()
+		task = subprocess.run(cmd, shell=shell, capture_output=True)
+		if not task.returncode:
+			try:
+				return task.stdout.decode('utf8')
+			except UnicodeDecodeError:
+				pass
+			return task.stdout
+		else:
+			msg = f'{task.returncode} : {cmd[0]}'
+			raise TermuxAPIError(msg)
 
 	def __init__(self):
 		"""Initialize termux communication"""
-		self.connected = threading.Event()
 		self.cwd = os.getcwd()
-		try:
-			self.connection = Connection('_gateway', connect_timeout=5)
-			if output := self.execute('pwd'):
-				self.cwd = output.strip('\n')
-			self.connected.set()
-		except Exception as e:
-			self.logger.critical(str(e))
+		self.cache = dict()
+		return

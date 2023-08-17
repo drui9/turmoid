@@ -1,0 +1,6 @@
+
+
+
+class TermuxAPIError(Exception):
+    pass
+
