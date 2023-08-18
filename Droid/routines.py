@@ -3,6 +3,7 @@ from Droid import droid, engine
 from sqlalchemy.orm import Session
 from Droid.utilfuncs import get_duration, get_sender
 from Droid.models import Battery, Device, Contact, Message, CallLog
+
 #
 @droid.routine(-1)
 def parse_call_log():
@@ -153,7 +154,7 @@ def check_battery():
 
 @droid.routine(0)
 def termux_foreground():
-	while droid.termux.ready():
+	while not droid.terminate.is_set():
 		if droid.need_fore.wait(timeout=10):
 			callid = str(datetime.utcnow().timestamp())
 			ok, err = droid.termux.query(['termux-clipboard-set', callid])

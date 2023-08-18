@@ -57,6 +57,7 @@ class Termux:
 
 	def execute(self, cmd :list, shell=False):
 		"""Execute cmd through termux"""
+		self.logger.debug(cmd)
 		task = subprocess.run(cmd, shell=shell, capture_output=True)
 		if not task.returncode:
 			try:

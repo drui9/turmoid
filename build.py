@@ -2,20 +2,23 @@
 @author: sp3rtah
 @email: ngaira14nelson@gmail.com
 
-Desc: This is a build script for Droid module.
+Desc: This script builds `Droid` module as a zipfile and does
+`scp .build/build.zip _gateway:` to deploy to termux.
 
-Usage:
-Package .backup-ignore, Makefile, requirements.txt and **/*.py into a zipfile.
-...maintaining directory structure. 
-Unpack zipfile on termux device through ssh.
+_gateway is specified in ~/.ssh/config as:
 
-todo: check .backup-ignore idea
+Host _gateway
+	Port 2221
 '''
 import os
+import zipfile
+import subprocess
 
-base = ['Makefile', 'requirements.txt']
+base = ('Makefile', 'requirements.txt', 'start.py')
 
 def main(directory ='Droid'):
+	build_dir = '.build'
+	zipname = os.path.join(build_dir, 'build.zip')
 	files = os.listdir('.')
 	#
 	for _file in base:
@@ -23,9 +26,25 @@ def main(directory ='Droid'):
 			raise RuntimeError(f'{_file} is missing!')
 	#
 	files = [f for f in os.walk(directory)]
-	seen = list()
+	seen = [b for b in base	]
 	for f in files:
-		print(f)
+		cwd, dirs, scripts = f
+		seen.extend([os.path.join(cwd, i) for i in scripts if i[-3:] == '.py'])
+	#
+	os.system(f'mkdir -p {build_dir}')
+	with zipfile.ZipFile(zipname, 'w') as zf:
+		for item in seen:
+			zf.write(item, compress_type=zipfile.ZIP_DEFLATED)
+	#
+	print(f'Deploying [{zipname}]')
+	deploy = subprocess.run(['scp', zipname, '_gateway:'])
+	try:
+		deploy.check_returncode()
+		print('Deployment successful.')
+		return
+	except subprocess.CalledProcessError:
+		pass
+	print('Deployment failed.')
 
 if __name__ == '__main__':
 	main()

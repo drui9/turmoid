@@ -6,11 +6,13 @@ from Droid.models import Device
 from Droid import engine, Termux
 from sqlalchemy.orm import Session
 from contextlib import contextmanager
+from Droid.change_monitor import Watchdog
 
 
 class Base:
 	routines = dict()
 	termux = Termux()
+	watcher = Watchdog()
 	logger = Termux.logger
 	need_fore = threading.Event()
 	active = threading.Event()
