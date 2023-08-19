@@ -47,7 +47,8 @@ class Termux:
 			if cache and cmd[0] not in self.cache:
 				if isinstance(ret, str):
 					self.cache.update({cmd[0], ret})
-					# todo: save and load cache
+					self.logger.debug('todo: save to cache.')
+					# todo: save cache
 			#
 			final_ = f'{cmd[0]} latency: {final_ - st:.2f}sec'
 			return final_, self.handlers[cmd[0]]['handler'](ret)
@@ -73,4 +74,5 @@ class Termux:
 		"""Initialize termux communication"""
 		self.cwd = os.getcwd()
 		self.cache = dict()
+		# todo: load cache
 		return

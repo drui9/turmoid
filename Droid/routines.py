@@ -171,3 +171,6 @@ def termux_foreground():
 				params = ['-g', 'top', '-b', 'white', '-c', 'black']
 				droid.termux.query(['termux-toast', *params,  f'"{msg}"'])
 
+@droid.routine(0)
+def text_to_speech(**kwargs):
+	droid.logger.info('Text to speech started.')

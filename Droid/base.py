@@ -1,5 +1,6 @@
 import time
 import math
+import loguru
 import threading
 from datetime import datetime
 from Droid.models import Device
@@ -13,7 +14,7 @@ class Base:
 	routines = dict()
 	termux = Termux()
 	watcher = Watchdog()
-	logger = Termux.logger
+	logger = loguru.logger
 	need_fore = threading.Event()
 	active = threading.Event()
 	foreground = threading.Event()
@@ -21,7 +22,7 @@ class Base:
 
 	# add new routines
 	@classmethod
-	def routine(cls, interval):
+	def routine(cls, interval, **kwargs):
 		"""Add a routine to execute at each interval time"""
 		"""Execute routine as daemon thread if interval == 0"""
 		def wrapper(fn):
@@ -97,7 +98,7 @@ class Base:
 			if not self.fingerprint():
 				yield
 				return
-			# -- load device info
+			# # -- load device info
 			device = Device()
 			device.user = user
 			#
@@ -169,4 +170,5 @@ class Base:
 			timeout = nextv - sleeptime
 			sleeptime += timeout
 			time.sleep(timeout / self.speed) # refresh speedup
+		self.logger.debug('Scheduler closed.')
 		return

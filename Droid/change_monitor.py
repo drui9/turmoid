@@ -1,7 +1,7 @@
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from typing import Callable
-from loguru import logger
+import loguru
 
 #
 class Watchdog(FileSystemEventHandler):
@@ -9,6 +9,7 @@ class Watchdog(FileSystemEventHandler):
         self.observer = Observer()
         self.directory = directory
         self.handlers = dict()
+        self.logger = loguru.logger
 
     def handle(self, event :str, validator : Callable):
         def wrapper(fn):
@@ -27,6 +28,10 @@ class Watchdog(FileSystemEventHandler):
                 handler(event.src_path)
 
     def start(self):
-        logger.info(f'Watching for filesystem changes in: [{self.directory}]')
         self.observer.schedule(self, self.directory, recursive=True)
-        self.observer.start()
+        try:
+            self.observer.start()
+            self.logger.info(f'Watching filesystem at: [{self.directory}]')
+        except OSError as e:
+            self.logger.critical(str(e))
+            raise
