@@ -1,18 +1,18 @@
-env := venv
-target := build.zip
+env := build/venv
+pip := $(env)/bin/pip
+python := $(env)/bin/python
+build_deps := build/requirements.txt
 
+dev: $(clean) $(python)
+	@python3 -c "import build; build.run()"
 
-dev:
-	@python3 build.py
+$(python): $(pip)
 
-prod: $(env)
-	@./venv/bin/python start.py
+$(pip): $(build_deps) $(env)
+# 	$@ install -r $(build_deps) # todo: enable this with internet
 
 $(env):
-	python3 -m venv venv;./venv/bin/pip install -r requirements.txt
-
-unpack: $(target)
-	unzip -o $^; touch Makefile
+	python3 -m venv $@
 
 clean:
-	@rm -rf **/__pycache__ .build
+	@rm -rf **/__pycache__ **/.build

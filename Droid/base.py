@@ -102,14 +102,14 @@ class Base:
 			device = Device()
 			device.user = user
 			#
-			data = self.get('termux-info')
-			#
-			device.version = data['Android version']
-			device.termux_version = data['TERMUX_VERSION']
-			device.manufacturer = data['Manufacturer']
-			device.model = data['Model']
-			session.add(device)
-			session.commit()
+			# data = self.get('termux-info')
+			# #
+			# device.version = data['Android version']
+			# device.termux_version = data['TERMUX_VERSION']
+			# device.manufacturer = data['Manufacturer']
+			# device.model = data['Model']
+			# session.add(device)
+			# session.commit()
 			self.logger.info(f'Device [{device.model}:v{device.version}] registered.')
 		#
 		self.user = user

@@ -1,11 +1,12 @@
-from Droid import Base
+from Droid import engine
 from datetime import timedelta
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy import (
 		Column, Integer, String, ForeignKey,
 		Boolean, Float, DateTime, Interval
 	)
 
+Base = declarative_base()
 
 class Contact(Base):
 	__tablename__ = 'contact'
@@ -87,3 +88,6 @@ class Device(Base):
 
 	def __repr__(self):
 		return f'Android({self.version}, {self.model}, {self.user})'
+
+# create all
+Base.metadata.create_all(bind=engine)

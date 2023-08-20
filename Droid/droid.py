@@ -70,11 +70,16 @@ class Android(Base):
     def update(self, package):
         """Unpack package and restart"""
         self.logger.info('Processing update...')
+        # self.reboot.set() # dev feature: run build script to trigger shutdown. Uncomment to force reboot   # noqa: E501
+        self.shutdown()
+        return # defer updates
         up = subprocess.run(['make', 'unpack'], capture_output=True)
         if not up.returncode:
             dep_hash = self.get_file_hash('requirements.txt')
-            if dep_hash != self.dependacy_hash:
-                self.logger.info('Project dependancies changed!')
+            if dep_hash != self.dependacy_hash: # todo: wait for internet availability
+                install = subprocess.run(['./venv/bin/pip','install','-r','requirements.txt'])  # noqa: E501
+                if code := install.returncode:
+                    self.logger.info(f'Failed installing dependancies! retcode: {code}')
             self.reboot.set()
             self.shutdown()
         else:

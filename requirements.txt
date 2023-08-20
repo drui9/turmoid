@@ -2,3 +2,4 @@ loguru
 requests
 watchdog
 sqlalchemy
+pytube
