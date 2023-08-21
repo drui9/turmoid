@@ -9,7 +9,7 @@ dev: $(clean) $(python)
 $(python): $(pip)
 
 $(pip): $(build_deps) $(env)
-# 	$@ install -r $(build_deps) # todo: enable this with internet
+# 	$@ install -r $(build_deps) # todo: toggle this with internet availability
 
 $(env):
 	python3 -m venv $@
