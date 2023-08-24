@@ -1,9 +1,6 @@
 import os
 import sys
-import hashlib
 import threading
-import subprocess
-from loguru import logger
 from Droid.base import Base
 from datetime import datetime
 
@@ -13,14 +10,6 @@ class Android(Base):
         super().__init__()
         self.reboot = threading.Event()
         self.logger.info(f'Droid started at: {datetime.now().ctime()}')
-        self.dependacy_hash = self.get_file_hash('requirements.txt')
-        return
-
-    def get_file_hash(self, fname :str):
-        if not os.path.exists(fname):
-            raise FileNotFoundError(fname)
-        with open(fname, 'rb') as bfile:
-            return hashlib.md5(bfile.read()).hexdigest()
         return
 
     def start(self):
@@ -36,17 +25,25 @@ class Android(Base):
                 self.logger.info('No routines scheduled.')
             else:
                 self.logger.info('Routines completed.')
+            #
             self.terminate.wait()
-            if self.reboot.is_set():
-                self.restart()
+            self.shutdown()
         return
 
     def change_mon(self):
         """Prepares watchdog filesystem watcher"""
-        # handlers
-        @self.watcher.handle('closed', validator=lambda x: x.src_path[-4:] == '.zip')
-        def update_available(path):
-            self.update(path)
+        # watch downloads
+        directory = 'storage/shared/Download'
+        @self.watcher.handle(directory, 'created', validator=lambda x: 'Download' in x.src_path)  # noqa: E501
+        def new_download(path):
+            self.logger.info(f'New download: {path}')
+            self.terminate.set()
+        # watch documents
+        directory = 'storage/shared/Documents'
+        @self.watcher.handle(directory, 'created', validator=lambda x: 'Documents' in x.src_path)  # noqa: E501
+        def new_document(path):
+            self.logger.info(f'New document: {path}')
+            self.terminate.set()
         # start watcher
         self.watcher.start()
         return
@@ -57,30 +54,11 @@ class Android(Base):
             self.logger.debug(args)
         self.active.clear()
         self.terminate.set()
-        self.watcher.observer.stop()
-        self.logger.info('Shutdown requested.')
-        self.terminate.wait()
-        self.logger.info('Terminated.')
+        self.watcher.stop()
+        # shutdown notice
+        self.get('termux-vibrate')
+        self.logger.info('Shutdown sequence completed.')
 
     def restart(self):
         self.logger.info('Rebooting...')
         return os.execv(sys.executable, ['./venv/bin/python'] + sys.argv)
-
-    @logger.catch
-    def update(self, package):
-        """Unpack package and restart"""
-        self.logger.info('Processing update...')
-        # self.reboot.set() # dev feature: run build script to trigger shutdown. Uncomment to force reboot   # noqa: E501
-        self.shutdown()
-        return # defer updates
-        up = subprocess.run(['make', 'unpack'], capture_output=True)
-        if not up.returncode:
-            dep_hash = self.get_file_hash('requirements.txt')
-            if dep_hash != self.dependacy_hash: # todo: wait for internet availability
-                install = subprocess.run(['./venv/bin/pip','install','-r','requirements.txt'])  # noqa: E501
-                if code := install.returncode:
-                    self.logger.info(f'Failed installing dependancies! retcode: {code}')
-            self.reboot.set()
-            self.shutdown()
-        else:
-            self.logger.critical(f'Update failed with code: {up.returncode}')

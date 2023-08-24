@@ -47,6 +47,16 @@ data = termux.query(['termux-microphone-record', '-d', '-f', 'sound.m4a']) # rec
 data = termux.query(['termux-microphone-record', '-q']) # stop recording
 ```
 
+## Generating build certificates
+```
+Generating self-signed certificates:
+1. openssl genrsa -out private.key 4096
+2. openssl req -new -key private.key -out signreq.csr
+3. openssl x509 -req -days 365 -in signreq.csr -signkey private.key -out certificate.pem
+==
+(step 2) Notice -> Common Name (e.g. server FQDN or YOUR name) = server_hostname
+```
+
 ## `Notes`
 - Commands starting with `data =` have a valid output on success.
 - Some API calls have high latency due to termux implementation.

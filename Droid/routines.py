@@ -1,6 +1,12 @@
+import os
+import ssl
+import json
+import zipfile
+from hashlib import md5
 from datetime import datetime
 from Droid import droid, engine
 from sqlalchemy.orm import Session
+from socket import socket, AF_INET, SOCK_STREAM
 from Droid.utilfuncs import get_duration, get_sender
 from Droid.models import Battery, Device, Contact, Message, CallLog
 
@@ -165,12 +171,74 @@ def termux_foreground():
 			if data == callid:
 				droid.foreground.set()
 				droid.need_fore.clear()
-			else:
+			else: # todo: request foreground through notification
 				droid.foreground.clear()
 				msg = 'Termux foreground request.'
 				params = ['-g', 'top', '-b', 'white', '-c', 'black']
 				droid.termux.query(['termux-toast', *params,  f'"{msg}"'])
+	# exit notice
+	droid.logger.info('Foreground manager exited.')
 
 @droid.routine(0)
+def update_manager():
+	TLS_PORT = 9090
+	sock = socket(AF_INET, SOCK_STREAM)
+	try:
+		sock.bind(('0.0.0.0', TLS_PORT))
+	except OSError as e: # could not bind addr
+		droid.logger.critical(str(e))
+		return droid.terminate.set()
+	sock.listen(1)
+	#
+	ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+	ssl_ctx.load_cert_chain('droid/crypt/certificate.pem', keyfile='droid/crypt/private.key')  # noqa: E501
+	ssock = ssl_ctx.wrap_socket(sock, server_side=True)
+	ssock.settimeout(5)
+	#
+	while not droid.terminate.is_set():
+		try:
+			conn, addr = ssock.accept()
+			conn.settimeout(10)
+		except TimeoutError:
+			continue
+		# get files
+		with zipfile.ZipFile('droid/droid.zip') as zf:
+			files = zf.namelist()
+		out = dict()
+		basedir = 'droid'
+		for file in files:
+			fpath = os.path.join(basedir, file)
+			with open(fpath, 'rb') as ffile:
+				out.update({file: md5(ffile.read()).hexdigest()})
+		#
+		try:
+			# send diff
+			conn.send(json.dumps(out).encode('utf8'))
+			# todo: accept update zipfile
+			while True:
+				try:
+					true_diff = conn.recv()
+					if not true_diff:
+						break
+					#
+					try:
+						true_diff = json.loads(true_diff.decode('utf8'))
+						droid.logger.debug(true_diff)
+						# todo: sync with true_diff
+						conn.send(json.dumps({'ok': True}).encode('utf8'))
+					except Exception as e:
+						droid.logger.info(f'Update failed: {e}')
+						break
+					# receive update zipfile
+					break
+				except TimeoutError:
+					continue
+			# close
+			conn.close()
+		except Exception as e:
+			droid.logger.critical(e)
+	droid.logger.info('Update manager exited.')
+
+@droid.routine(-1)
 def text_to_speech(**kwargs):
-	droid.logger.info('Text to speech started.')
+	pass

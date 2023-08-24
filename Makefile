@@ -3,16 +3,11 @@ pip := $(env)/bin/pip
 python := $(env)/bin/python
 build_deps := build/requirements.txt
 
-dev: $(clean) $(python)
-	@python3 -c "import build; build.run()"
-
-$(python): $(pip)
-
-$(pip): $(build_deps) $(env)
-# 	$@ install -r $(build_deps) # todo: toggle this with internet availability
+dev: $(clean) $(env)
+	@$(python) -c "import build; build.run()"
 
 $(env):
-	python3 -m venv $@
+	python3 -m venv $@ && $(pip) install -r $(build_deps)
 
 clean:
 	@rm -rf **/__pycache__ **/.build

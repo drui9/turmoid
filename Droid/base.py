@@ -7,7 +7,7 @@ from Droid.models import Device
 from Droid import engine, Termux
 from sqlalchemy.orm import Session
 from contextlib import contextmanager
-from Droid.change_monitor import Watchdog
+from Droid.filewatch import Watchdog
 
 
 class Base:
@@ -51,7 +51,7 @@ class Base:
 	# -- instance methods ---
 	def __init__(self):
 		self.speed = 1
-		self.user = None
+		self.user = None # device user as returned by $whoami
 		return
 
 	def get(self, command :str):
