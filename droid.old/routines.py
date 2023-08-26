@@ -238,7 +238,3 @@ def update_manager():
 		except Exception as e:
 			droid.logger.critical(e)
 	droid.logger.info('Update manager exited.')
-
-@droid.routine(-1)
-def text_to_speech(**kwargs):
-	pass

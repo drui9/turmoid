@@ -1,7 +1,6 @@
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from typing import Callable
-from threading import Event
 import loguru
 import os
 
@@ -12,7 +11,6 @@ class Watchdog(FileSystemEventHandler):
         self.handlers = dict()
         self.directories = list()
         self.logger = loguru.logger
-        self.running = Event()
 
     def handle(self, directory, event :str, validator : Callable):
         def wrapper(fn):
@@ -26,7 +24,7 @@ class Watchdog(FileSystemEventHandler):
             self.handlers[event].append((validator, fn))
             self.directories.append(directory)
             # if already running, add to schedule
-            if self.running.is_set():
+            if self.observer.is_alive():
                 self.observer.schedule(self, directory, recursive=True)
             return None # block external calls
         return wrapper
@@ -47,14 +45,10 @@ class Watchdog(FileSystemEventHandler):
         # deploy observer
         try:
             self.observer.start()
-            self.running.set()
             self.logger.info(f'Watching changes: {len(self.directories)} directories.')
         except OSError as e:
             self.logger.critical(str(e))
             raise
 
     def stop(self):
-        if not self.running.is_set():
-            return
         self.observer.stop()
-        self.running.clear()

@@ -1,5 +1,5 @@
-from Droid import engine
 from datetime import timedelta
+from sqlalchemy import create_engine
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy import (
 		Column, Integer, String, ForeignKey,
@@ -7,6 +7,7 @@ from sqlalchemy import (
 	)
 
 Base = declarative_base()
+engine = create_engine('sqlite:///:memory:')
 
 class Contact(Base):
 	__tablename__ = 'contact'

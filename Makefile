@@ -1,13 +1,8 @@
-env := build/venv
-pip := $(env)/bin/pip
-python := $(env)/bin/python
-build_deps := build/requirements.txt
+run:
+	src/venv/bin/python src/droid.py
 
-dev: $(clean) $(env)
-	@$(python) -c "import build; build.run()"
-
-$(env):
-	python3 -m venv $@ && $(pip) install -r $(build_deps)
+dev: clean
+	make -s -f build/Makefile.build
 
 clean:
-	@rm -rf **/__pycache__ **/.build
+	rm -rf .build

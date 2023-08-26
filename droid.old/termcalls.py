@@ -32,7 +32,6 @@ def termux_battery_status(output):
 		pass
 	return output
 
-
 @Termux.arg('-h -a -c -l -s -n *')
 def termux_sensor(output):
 	"""Get information about types of sensors as well as live data."""

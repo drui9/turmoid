@@ -2,7 +2,6 @@ import os
 import loguru
 import subprocess
 from time import perf_counter
-from Droid.errors import TermuxAPIError
 
 
 class Termux:
@@ -68,7 +67,7 @@ class Termux:
 			return task.stdout
 		else:
 			msg = f'{task.returncode} : {cmd[0]}'
-			raise TermuxAPIError(msg)
+			raise RuntimeError(msg)
 
 	def __init__(self):
 		"""Initialize termux communication"""
