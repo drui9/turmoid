@@ -1,12 +1,12 @@
 env := ./venv
 rundir := ./droid
 pip := $(env)/bin/pip
-python := $(env)/bin/python
+python := ../venv/bin/python
 build_deps := $(rundir)/requirements.txt
 
 
 run: $(clean) $(env)
-	$(python) $(rundir)/droid.py
+	@cd $(rundir) && $(python) -c 'from droid import start;start()';
 
 $(env):
 	python3 -m venv $@ && $(pip) install -r $(build_deps)
