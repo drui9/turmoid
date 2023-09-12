@@ -17,6 +17,11 @@ class Core(Base):
         self.outgoing = queue.Queue()
         self.incoming = queue.Queue()
         self.internal = queue.Queue()
+        self.register = {
+            'lock': threading.Lock(),
+            'products': dict(),
+            'expects': dict()
+        }
         self.subscribers = {
             'lock': threading.Lock(),
             'events': dict()
@@ -36,12 +41,30 @@ class Core(Base):
                 event = self.internal.get(timeout=3)
             except queue.Empty:
                 continue
-            self.logger.debug(event)
+            self.logger.debug(f'Event received: {event["event"]}')
+            with self.subscribers['lock']:
+                if event['event'] in self.subscribers['events']:
+                    [i.put(event) for i in self.subscribers['events'][event['event']]]
         return
 
     #
     @contextmanager
     def Subscribe(self, event :str):
+        with self.register['lock']:
+            found = None
+            for serv,products in self.register['products'].items():
+                if event in products:
+                    found = serv
+                    break
+            if found: # debug tip: log when not found
+                if self.services['servlist'][found]['data']['autostart'] == 'off':
+                    if not self.events.is_set(f'{found}-online'):
+                        self.internal.put({'event': f'{found}-start'}) # start service
+                        while not self.terminate.is_set():
+                            if self.events.get(f'{found}-online').wait(timeout=5): # wait for service  # noqa: E501
+                                break
+                            self.logger.debug(f'Timed out waiting for service: {found}')
+        #
         storage = queue.Queue()
         with self.subscribers['lock']:
             if event not in self.subscribers['events']:
@@ -50,8 +73,9 @@ class Core(Base):
                 }
                 self.subscribers['events'].update(data)
             # -- register storage
-            self.logger.debug(f'Subscribed to {event}.')
             self.subscribers['events'][event].append(storage)
+            if not self.terminate.is_set():
+                self.logger.debug(f'Subscribed to {event}.')
         yield storage
         with self.subscribers['lock']:
             if len(self.subscribers['events'][event]) == 1:
@@ -66,17 +90,11 @@ class Core(Base):
         for sname, service in self.services['servlist'].items():
             extra = {'core': self, 'terminate': self.events.get(f'{sname}-terminate')}
             service['data'] = service['data'] | extra
-            if ( autostart := service['data'].get('autostart')) == 'on':
-                serv = threading.Thread(target=service['enter'], args=(service['data'],))  # noqa: E501
-                serv.name = sname
-                serv.start()
-                service['runtime']['task'] = serv
-            elif autostart == 'delay':
-                delay = service['data'].get('delay', datetime.timedelta(seconds=12)).total_seconds()  # noqa: E501
-                serv = threading.Timer(delay, service['enter'], args=(service['data'],))  # noqa: E501
-                serv.name = sname
-                serv.start()
-                service['runtime']['task'] = serv
+            #
+            serv = threading.Thread(target=service['enter'], args=(service['data'],))  # noqa: E501
+            serv.name = sname
+            serv.start()
+            service['runtime']['task'] = serv
         yield
         # -- terminate services
         services = self.services['servlist'].items()

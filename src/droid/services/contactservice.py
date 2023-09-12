@@ -8,6 +8,11 @@ import json
 
 @Base.service(alias='contact-service', autostart='off')
 class ContactService(Service):
+    def declare(self):
+        self.expects('contact-update-request')
+        self.produces('contact-info')
+
+    #
     def refresh(self):
         with termux_get('termux-contact-list') as proc:
             body = list()

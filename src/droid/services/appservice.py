@@ -56,7 +56,6 @@ class AppService(Service):
             self.updating.clear()
             with self.context:
                 for app in self.ui['connected']['connections']:
-                    self.logger.debug(app)
                     event = {
                         'event': 'app-launch',
                         'data': {
@@ -70,12 +69,12 @@ class AppService(Service):
                         '--on-going': None,
                         '--action': event,    #dict|list[dict]
                     }
-                    self.core.internal.put({
-                            'event': 'notification-request',
-                            'data': notice
-                        })
                     # todo: subscribe to notification-response
                     with self.core.Subscribe('notification-response') as resp:
+                        self.core.internal.put({
+                                'event': 'notification-request',
+                                'data': notice
+                            })
                         while not self.updating.is_set():
                             try:
                                 data = resp.get(timeout=2)
