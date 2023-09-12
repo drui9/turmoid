@@ -1,4 +1,5 @@
 from .home import Home  # noqa: F401
+from .music import Music # noqa: F401
 
 """notes
 Events:

@@ -35,7 +35,7 @@ class AppBase(ABC):
                         try:
                             data = from_sock(conn)
                             if not data:
-                                raise RuntimeError(f'App({self.name}) disconnected.')
+                                raise RuntimeError(f'App::{self.name} disconnected.')
                             incoming.put(data)
                         except TimeoutError:
                             continue

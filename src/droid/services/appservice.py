@@ -1,5 +1,6 @@
 import time
 import queue
+import random
 import socket
 import threading
 import multiprocessing
@@ -51,39 +52,52 @@ class AppService(Service):
     #
     def Session(self):
         while not self.terminate.is_set():
-            if not self.core.events.wait('applist-updating'):
-                break
-            self.updating.clear()
             with self.context:
-                for app in self.ui['connected']['connections']:
-                    event = {
-                        'event': 'app-launch',
-                        'data': {
-                            'name': app,
-                            'timestamp': time.time()
-                        }
-                    }
-                    notice = {
-                        '-t': app,
-                        '-c': 'Click to launch.',
-                        '--on-going': None,
-                        '--action': event,    #dict|list[dict]
-                    }
-                    # todo: subscribe to notification-response
-                    with self.core.Subscribe('notification-response') as resp:
-                        self.core.internal.put({
-                                'event': 'notification-request',
-                                'data': notice
-                            })
-                        while not self.updating.is_set():
-                            try:
-                                data = resp.get(timeout=2)
-                            except queue.Empty:
-                                if self.terminate.is_set():
-                                    break
-                                continue
-                            self.logger.debug(data)
+                self.logger.critical(self.ui['connected']['connections'])
+                if not self.ui['connected']['connections']:
+                    if not self.core.events.wait('applist-updating'):
+                        return
+                    continue
+                #
+                self.updating.clear()
+                with self.list_apps() as resp:
+                    while not self.updating.is_set():
+                        try:
+                            data = resp.get(timeout=2)
                             break
+                        except queue.Empty:
+                            if self.terminate.is_set():
+                                break
+                            continue
+                    if self.updating.is_set() or self.terminate.is_set():
+                        continue
+                    self.logger.debug(data)
+    #
+    @contextmanager
+    def list_apps(self):
+        """List loaded applications"""
+        with self.core.Subscribe('notification-response') as resp:
+            for app in self.ui['connected']['connections']:
+                event = {
+                    'event': 'notification-response',
+                    'data': {
+                        'name': app,
+                        'action': 'app-launch',
+                        'timestamp': time.time()
+                    }
+                }
+                notice = {
+                    '-t': f'App::{app}',
+                    '-c': 'Click to launch.',
+                    '--ongoing': None,
+                    '--id': random.randint(1e3, 1e12),
+                    '--action': event,    #dict|list[dict]
+                }
+                self.core.internal.put({
+                    'event': 'notification-request',
+                    'data': notice
+                })
+            yield resp
 
     #
     def app_handshake(self, conn) -> bool:
@@ -99,12 +113,13 @@ class AppService(Service):
     def app_add(self, name, conn):
         """Add app to app-list"""
         self.updating.set()
+        self.logger.debug(f'Installing {name}...')
         with self.context:
             if prev := self.ui['connected']['connections'].get(name):
                 prev.close()
                 self.logger.critical(f'Updating app connection: {name}')
             self.ui['connected']['connections'][name] = conn
-            self.logger.debug(f'Loaded app:{name}')
+            self.logger.debug(f'{name} installed.')
             # todo: read/write from/to socket & detect disconnect
             return True
 
@@ -112,9 +127,10 @@ class AppService(Service):
     def app_pop(self, name):
         """Remove app from app-list"""
         self.updating.set()
+        self.logger.debug(f'Uninstalling {name}...')
         try:
             with self.context:
-                self.logger.debug(f'Ejecting app:{name}')
+                self.logger.debug(f'{name} uninstalled.')
                 return self.ui['connected']['connections'].pop(name)
         except KeyError:
             return

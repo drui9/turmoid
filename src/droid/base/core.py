@@ -1,6 +1,5 @@
 import random
 import queue
-import datetime
 import threading
 from droid.base import Base
 from contextlib import contextmanager
@@ -10,7 +9,7 @@ from droid.models import Base as db_base
 #
 class Core(Base):
     def __init__(self):
-        self.remote = ('127.0.0.1', random.randint(1001, 3003))
+        self.remote = ('127.0.0.1', random.randint(10001, 30003))
         db_base.metadata.create_all(bind=self.db)
         self.events.set_parent(self)
         # data channels
@@ -39,12 +38,15 @@ class Core(Base):
         while not self.terminate.is_set():
             try:
                 event = self.internal.get(timeout=3)
+                # self.logger.debug(event)
             except queue.Empty:
                 continue
-            self.logger.debug(f'Event received: {event["event"]}')
+            #
             with self.subscribers['lock']:
                 if event['event'] in self.subscribers['events']:
                     [i.put(event) for i in self.subscribers['events'][event['event']]]
+                    continue
+                self.logger.debug(f'Event dropped: {event["event"]}')
         return
 
     #
@@ -74,15 +76,12 @@ class Core(Base):
                 self.subscribers['events'].update(data)
             # -- register storage
             self.subscribers['events'][event].append(storage)
-            if not self.terminate.is_set():
-                self.logger.debug(f'Subscribed to {event}.')
         yield storage
         with self.subscribers['lock']:
             if len(self.subscribers['events'][event]) == 1:
                 del self.subscribers['events'][event]
             else:
                 self.subscribers['events'][event].remove(storage)
-            self.logger.debug(f'Unsubscribed from {event}.')
 
     #
     @contextmanager
@@ -101,4 +100,3 @@ class Core(Base):
         _= [v['runtime']['terminate'].set() for _, v in services]
         _= [v['runtime']['online'].clear() for _, v in services]
         return [v['runtime']['task'].join() for _, v in services if 'task' in v['runtime']]  # noqa: E501
-
