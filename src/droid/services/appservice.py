@@ -59,7 +59,7 @@ class AppService(Service):
                 # send notification of update and act on response
                 event = {
                     'event': 'notification-response',
-                    'data': {'action': 'update-now'}|data
+                    'data': {'action': 'update-now'}|data.get('requires', {})
                 }
                 notif_info = {
                     '-t': 'Update available',
@@ -83,7 +83,7 @@ class AppService(Service):
                             self.post(note|{'event': 'package-manager-request'})
                             #
                             if self.core.events.wait('app-update-ready'):
-                                if self.core.events.is_set('update-service-terminate'): # shutdown to update  # noqa: E501
+                                if self.core.events.is_set('droid-update-done'):
                                     self.core.stop()
                                     self.ui['app-runtime']['online'].clear()
                                     return
@@ -176,11 +176,11 @@ class AppService(Service):
             yield notifier
 
     #
-    def app_action(self, app, timestamp):
+    def app_action(self, app, _):
         """Execute app action"""
-        tm = datetime.now() - datetime.fromtimestamp(timestamp)
+        tm = datetime.now().ctime()
         with self.core.Subscribe('toast-ok') as notein:
-            msg = f'{app} started after {tm.total_seconds()} sec idle.'
+            msg = f'{app} started on {tm}.'
             toast = {
                 'event': 'toast-request',
                 'data': {

@@ -18,7 +18,7 @@ class ToastNotificationService(Service):
                 try:
                     notice = toast.get(timeout=2)
                     if msg := notice['data'].get('message'):
-                        args = ['-g', 'top', '-b', 'white', '-c', 'black', f'{msg}']
+                        args = ['-g', 'top', '-c', 'white', '-b', 'black', f'{msg}']
                         with termux_get(['termux-toast', *args]) as proc:
                             proc.wait()
                             out = {

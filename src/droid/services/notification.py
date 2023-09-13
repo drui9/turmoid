@@ -48,7 +48,8 @@ class NotificationService(Service):
             while not self.to_stop:
                 try:
                     notice = notification.get(timeout=2)
-                    args = notice['data']
+                    if not (args := notice.get('data')):
+                        continue
                 except queue.Empty:
                     continue
                 #
@@ -76,3 +77,5 @@ class NotificationService(Service):
                         self.logger.critical(out)
                     elif out:
                         self.logger.debug(f'Subprocess says: {out}')
+            #
+            self.logger.debug('Notification service exited.')

@@ -2,8 +2,10 @@ import os
 import ssl
 import queue
 import socket
+import secrets
 import loguru
 import threading
+import subprocess
 from droid.base import Base
 from .service import Service
 from droid.builtin.extras import to_sock, from_sock
@@ -29,6 +31,7 @@ class UpdateService(Service):
         self.expects('package-manager-request')
         self.produces(['update-request'])
         self.updateinfo = {
+            'updated': self.core.events.add('droid-update-done'),
             'ready': self.core.events.add('app-update-ready'),
             'lock': threading.Lock(),
             'zbytes': bytes(),
@@ -50,21 +53,52 @@ class UpdateService(Service):
             while not self.to_stop:
                 try:
                     req = pack.get(timeout=5)
-                    if data := req.get('data'):
-                        new = data.get('new')
-                        old = data.get('old')
-                        if self.updator(new, old):
-                            self.stop() # shutdown to signal reboot
+                    if req['data'].get('action') == 'update-now':
+                        with self.updateinfo['lock']:
+                            if self.updator():
+                                self.updateinfo['updated'].set()
+                            else:
+                                self.updateinfo['updated'].clear()
+                            # notify wait queue
                             self.updateinfo['ready'].set()
-                            return
                 except queue.Empty:
                     continue
             #
 
     #
-    def updator(self, new, old):
+    def updator(self):
         """install new, ask to uninstall old"""
-        self.logger.info(f'Updating. Size: {len(self.updateinfo["zbytes"])/1024:.1f}kb')  # noqa: E501
+        basedir = '/data/data/com.termux/files/usr/tmp'
+        reqfile = os.path.join(basedir, secrets.token_hex(6))
+        #
+        if not (rq := self.updateinfo['notice']['data'].get('requires')):
+            return True # no depencency changes
+        #
+        os.mkfifo(reqfile)
+        pip = '/data/data/com.termux/files/home/venv/bin/pip'
+        # uninstall deprecated
+        if old := rq.get('old'):
+            task = subprocess.Popen([pip, 'uninstall', '-y', '-r', reqfile], stdout=subprocess.PIPE)  # noqa: E501
+            with open(reqfile, 'w') as rf:
+                rf.writelines(old)
+                rf.flush()
+            task.wait()
+            if task.returncode:
+                self.logger.debug(f'Uninstall failed: {old}')
+            else:
+                self.logger.debug(f'Uninstalled {len(old)} unused packages.')
+        # -- install new deps
+        if new := rq.get('new'):
+            task = subprocess.Popen([pip, 'install', '-r', reqfile], stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: E501
+            with open(reqfile, 'w') as rf:
+                rf.writelines(new)
+                rf.flush()
+            task.wait()
+            if task.returncode:
+                return False
+            self.logger.debug(f'Installed {len(new)} packages.')
+        self.logger.critical((new, old))
+        os.unlink(reqfile)
         return True
 
     #
@@ -88,7 +122,7 @@ class UpdateService(Service):
             #
             if to_sock(conn, {'pid': os.getpid()}):
                 if zbytes := conn.recv(size):
-                    if not to_sock(conn, {'ok': True}):
+                    if not to_sock(conn, {'ok': True}): # ok=True disables autostart
                         conn.close()
                     #
                     upnotice = {
