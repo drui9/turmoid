@@ -42,9 +42,11 @@ class Core(Base):
             except queue.Empty:
                 continue
             #
+            self.logger.debug(f'Waiting to forward {event["event"]}')
             with self.subscribers['lock']:
-                if event['event'] in self.subscribers['events']:
-                    [i.put(event) for i in self.subscribers['events'][event['event']]]
+                if (evt := event['event']) in self.subscribers['events']:
+                    [i.put(event) for i in self.subscribers['events'][evt]]
+                    self.logger.debug(f'Event({evt}) forwarded.')
                     continue
                 self.logger.debug(f'Event dropped: {event["event"]}')
         return
@@ -52,20 +54,29 @@ class Core(Base):
     #
     @contextmanager
     def Subscribe(self, event :str):
+        self.logger.debug(f'Subscribing to {event}')
         with self.register['lock']:
             found = None
             for serv,products in self.register['products'].items():
                 if event in products:
                     found = serv
                     break
-            if found: # debug tip: log when not found
+            if found:
                 if self.services['servlist'][found]['data']['autostart'] == 'off':
                     if not self.events.is_set(f'{found}-online'):
                         self.internal.put({'event': f'{found}-start'}) # start service
+                        self.logger.debug(f'Waiting for {found}')
                         while not self.terminate.is_set():
-                            if self.events.get(f'{found}-online').wait(timeout=5): # wait for service  # noqa: E501
+                            if self.events.get(f'{found}-online').wait(timeout=7): # wait for service  # noqa: E501
+                                self.logger.debug(f'{found} is online.')
                                 break
-                            self.logger.debug(f'Timed out waiting for service: {found}')
+                            self.logger.debug(f'Timed out waiting for {found}')
+                else:
+                    while not self.terminate.is_set():
+                        if self.events.get(f'{found}-online').wait(timeout=7): # wait for service  # noqa: E501
+                            self.logger.debug(f'{found} is online.')
+                            break
+                        self.logger.debug(f'Timed out waiting for {found}')
         #
         storage = queue.Queue()
         with self.subscribers['lock']:

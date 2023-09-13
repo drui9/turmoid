@@ -6,7 +6,7 @@ build_deps := $(rundir)/requirements.txt
 
 
 run: $(clean) $(env)
-	@cd $(rundir) && $(python) -c 'from droid import start;start()';
+	@cd $(rundir) && nice --19 $(python) -c 'from droid import start;start()';
 
 $(env):
 	python3 -m venv $@ && $(pip) install -r $(build_deps)

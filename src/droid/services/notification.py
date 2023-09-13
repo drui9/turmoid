@@ -33,6 +33,7 @@ class NotificationService(Service):
                 with open(path) as notice:
                     data = json.load(notice)
                     self.core.internal.put(data)
+                    self.logger.debug('Notification response received.')
 
     #
     def start(self):
@@ -60,9 +61,7 @@ class NotificationService(Service):
                     else:
                         if k == '--ongoing':
                             if '--id' not in args:
-                                __err = 'Ongoing notifications without an ID are not allowed!'  # noqa: E501
-                                self.logger.critical(__err)
-                                continue
+                                out.append(['--id', secrets.token_hex(8)])
                         out.append(k)
                 #
                 with termux_get(['termux-notification', *out]) as proc:

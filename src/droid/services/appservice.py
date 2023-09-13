@@ -6,8 +6,10 @@ import threading
 import multiprocessing
 from droid.base import Base
 from .service import Service
+from datetime import datetime
 from contextlib import contextmanager
-from droid.builtin.extras import from_sock, to_sock
+from droid.builtin.extras import from_sock, to_sock, termux_get
+
 
 @Base.service(alias='app-service', autostart='on')
 class AppService(Service):
@@ -18,6 +20,11 @@ class AppService(Service):
             'connected': {
                 'lock': threading.Lock(),
                 'connections': dict()
+            },
+            'app-runtime': {
+                'name': str(),
+                'lock': threading.Lock(),
+                'online': self.core.events.add('app-runtime')
             }
         }
         self.context = self.ui['connected']['lock']
@@ -27,56 +34,136 @@ class AppService(Service):
     def start(self):
         """Start and manage apps"""
         try:
-            ses = threading.Thread(target=self.Session)
-            ses.name = 'AppService::Session'
-            ses.start()
             with self.Connections():
                 with self.AppManager():
-                    while not self.terminate.is_set():
-                        try:
-                            conn = self.ui['new'].get(timeout=3)
-                        except queue.Empty:
-                            continue
-                        if not self.app_handshake(conn):
-                            conn.close()
-                    # close sockets on terminate
-                    with self.context:
-                        [v.close() for _, v in self.ui['connected']['connections'].items()]  # noqa: E501
+                    self.Session()
         except Exception:
             self.logger.exception('what?')
         finally:
             self.core.terminate.set()
-            ses.join()
-        ses.join()
 
     #
     def Session(self):
         while not self.terminate.is_set():
+            time.sleep(random.randint(1,3))
             with self.context:
-                self.logger.critical(self.ui['connected']['connections'])
+                if self.core.terminate.is_set():
+                    return
                 if not self.ui['connected']['connections']:
-                    if not self.core.events.wait('applist-updating'):
-                        return
+                    if self.core.events.wait('applist-updating'):
+                        self.logger.debug('Applist updating.')
                     continue
-                #
-                self.updating.clear()
-                with self.list_apps() as resp:
+                with self.app_notifications() as notices:
                     while not self.updating.is_set():
                         try:
-                            data = resp.get(timeout=2)
-                            break
+                            notice = notices.get(timeout=2)
                         except queue.Empty:
-                            if self.terminate.is_set():
-                                break
+                            if self.core.terminate.is_set():
+                                return
                             continue
-                    if self.updating.is_set() or self.terminate.is_set():
-                        continue
-                    self.logger.debug(data)
+                        if data := notice.get('data'):
+                            appnotice = data.get('name'), data.get('action'), data.get('timestamp')  # noqa: E501
+                            name, action, stamp = appnotice
+                            if action != 'app-launch':
+                                continue
+                            #
+                            act = threading.Thread(target=self.app_action, args=(name, stamp))  # noqa: E501
+                            act.name = f'{appnotice[0]}-handler'
+                            act.start()
+                            if not self.core.events.wait('app-runtime'):
+                                return
+                            self.logger.debug(f'Started app:{name}')
+                            break
+                # -- show app close notification
+                with self.app_close_notice() as notice:
+                    while self.ui['app-runtime']['online'].is_set():
+                        try:
+                            note = notice.get(timeout=2)
+                        except queue.Empty:
+                            if self.core.terminate.is_set():
+                                return
+                            continue
+                        if data := note.get('data'):
+                            appnotice = data.get('name'), data.get('action'), data.get('timestamp')  # noqa: E501
+                            if appnotice[1] != 'app-close':
+                                continue
+                            self.ui['app-runtime']['online'].clear()
+                            with self.ui['app-runtime']['lock']:
+                                self.logger.debug(f'{appnotice[0]} stopped.')
+                                break
+                if not self.updating.is_set() and not self.ui['app-runtime']['online'].is_set():  # noqa: E501
+                    continue
+                elif self.core.events.wait('applist-updating'):
+                    self.logger.debug('Applist updating at runtime.')
+                    continue
+
     #
     @contextmanager
-    def list_apps(self):
+    def app_close_notice(self):
+        """Show app close notification"""
+        if not self.ui['app-runtime']['online'].is_set():
+            return
+        app = self.ui['app-runtime']['name']
+        with self.core.Subscribe('notification-response') as notifier:
+            event = {
+                'event': 'notification-response',
+                'data': {
+                    'name': app,
+                    'action': 'app-close',
+                    'timestamp': time.time() # todo: calculate app uptime
+                }
+            }
+            notice = {
+                '-t': f'App::{app}',
+                '-c': 'Click to close.',
+                '--ongoing': None,
+                '--id': app,
+                '--action': event,    #dict|list[dict]
+                '--alert-once': None
+            }
+            self.core.internal.put({
+                'event': 'notification-request',
+                'data': notice
+            })
+            yield notifier
+
+    #
+    def app_action(self, app, timestamp):
+        """Execute app action"""
+        tm = datetime.now() - datetime.fromtimestamp(timestamp)
+        with self.core.Subscribe('toast-ok') as notein:
+            msg = f'{app} started after {tm.total_seconds()} sec idle.'
+            toast = {
+                'event': 'toast-request',
+                'data': {
+                    'id': f'{app}-start-toast',
+                    'message': msg
+                }
+            }
+            self.core.incoming.put(toast)
+            while not self.terminate.is_set():
+                try:
+                    note = notein.get(timeout=3)
+                except queue.Empty:
+                    self.logger.debug('Toast notification timed out!')
+                    continue
+                self.logger.debug(note)
+                break
+        with self.ui['app-runtime']['lock']:
+            self.ui['app-runtime']['name'] = app
+            self.ui['app-runtime']['online'].set()
+            while self.ui['app-runtime']['online'].is_set():
+                if self.terminate.is_set():
+                    return
+                time.sleep(1)
+                self.logger.debug(f'{app} running...')
+                # todo: 
+
+    #
+    @contextmanager
+    def app_notifications(self):
         """List loaded applications"""
-        with self.core.Subscribe('notification-response') as resp:
+        with self.core.Subscribe('notification-response') as notices:
             for app in self.ui['connected']['connections']:
                 event = {
                     'event': 'notification-response',
@@ -90,19 +177,25 @@ class AppService(Service):
                     '-t': f'App::{app}',
                     '-c': 'Click to launch.',
                     '--ongoing': None,
-                    '--id': random.randint(1e3, 1e12),
+                    '--id': app,
                     '--action': event,    #dict|list[dict]
+                    '--alert-once': None
                 }
                 self.core.internal.put({
                     'event': 'notification-request',
                     'data': notice
                 })
-            yield resp
+            yield notices
+            for app in self.ui['connected']['connections']:
+                with termux_get(['termux-notification-remove', app]) as proc:
+                    proc.wait()
 
     #
     def app_handshake(self, conn) -> bool:
         """naive receive and validate handshake"""
         try:
+            if self.terminate.is_set():
+                return
             name = from_sock(conn)['name']
         except KeyError:
             self.logger.debug('Invalid app handshake.')
@@ -112,26 +205,32 @@ class AppService(Service):
     #
     def app_add(self, name, conn):
         """Add app to app-list"""
+        self.logger.debug(f'Installing app: {name}')
         self.updating.set()
-        self.logger.debug(f'Installing {name}...')
         with self.context:
             if prev := self.ui['connected']['connections'].get(name):
                 prev.close()
                 self.logger.critical(f'Updating app connection: {name}')
+            #
             self.ui['connected']['connections'][name] = conn
-            self.logger.debug(f'{name} installed.')
-            # todo: read/write from/to socket & detect disconnect
-            return True
+            self.updating.clear()
+        #
+        addr = conn.getpeername()
+        self.logger.debug(f'{name}@{addr[0]}:{addr[1]} installed.')
+        return True
 
     #
     def app_pop(self, name):
         """Remove app from app-list"""
-        self.updating.set()
         self.logger.debug(f'Uninstalling {name}...')
+        self.updating.set()
         try:
             with self.context:
-                self.logger.debug(f'{name} uninstalled.')
-                return self.ui['connected']['connections'].pop(name)
+                app = self.ui['connected']['connections'].pop(name)
+                self.updating.clear()
+            #
+            self.logger.debug(f'{name} uninstalled.')
+            return app
         except KeyError:
             return
 
@@ -162,8 +261,10 @@ class AppService(Service):
             th.start()
             handlers.append(th)
         yield
+        # close app sockets to alert processes
+        with self.context:
+            [v.close() for _, v in self.ui['connected']['connections'].items()]  # noqa: E501
         # --clean-up
-        self.terminate.set()
         [th.join() for th in handlers]
         self.logger.debug('App manager closed.')
         return self.core.stop()
@@ -180,8 +281,9 @@ class AppService(Service):
                 try:
                     conn, addr = server.accept()
                     conn.settimeout(4)
-                    self.ui['new'].put(conn)
-                    self.logger.debug(f'{addr[0]}:{addr[1]} connected.')
+                    if not self.app_handshake(conn):
+                        conn.close()
+                        continue
                 except TimeoutError:
                     continue
                 except Exception as e:
@@ -190,7 +292,6 @@ class AppService(Service):
         connect_manager.name = 'ConnectManager'
         connect_manager.start()
         yield
-        # -- clean-up --
         self.terminate.set()
         connect_manager.join()
         return server.close()
