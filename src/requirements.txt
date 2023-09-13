@@ -1,6 +1,5 @@
 loguru
 pytube
-colorama
 requests
 watchdog
 music-tag

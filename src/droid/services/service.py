@@ -15,7 +15,7 @@ class Service(ABC):
         if self.autostart == 'on':
             self.launch()
         else:
-            while not self.terminate.is_set():
+            while not self.to_stop:
                 with self.core.Subscribe(f'{self.alias}-start') as start:
                     while not self.terminate.is_set():
                         try:
@@ -25,6 +25,11 @@ class Service(ABC):
                             continue
                 # -- launch service
                 self.launch()
+
+    #
+    def post(self, event):
+        """Post event to core"""
+        return self.core.internal.put(event)
 
     #
     def launch(self):
@@ -39,6 +44,7 @@ class Service(ABC):
         self.terminate.set()
 
     #
+    @property
     def to_stop(self):
         return self.terminate.is_set()
 

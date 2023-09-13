@@ -29,13 +29,15 @@ class AppBase(ABC):
     #
     def activate(self):
         with self.Router() as incoming:
-            while not self.terminate.is_set():
+            while not self.to_stop:
                 with self.Connect() as conn:
                     while self.connected.is_set():
                         try:
                             data = from_sock(conn)
                             if not data:
-                                raise RuntimeError(f'App::{self.name} disconnected.')
+                                self.logger.debug(f'App::{self.name} disconnected.')
+                                self.connected.clear()
+                                break
                             incoming.put(data)
                         except TimeoutError:
                             continue
@@ -48,12 +50,14 @@ class AppBase(ABC):
     @contextmanager
     def Connect(self):
         """Connect to server"""
-        while not self.terminate.is_set():
+        self.connected.clear()
+        self.logger.debug(f'{self.name} Connecting...')
+        while not self.to_stop:
             try:
                 conn = socket.create_connection(self.remote)
                 break
-            except Exception as e:
-                self.logger.debug(f'Waiting to connect to server: {e}')
+            except Exception:
+                self.logger.debug('Reconnecting...')
                 time.sleep(random.randint(1,4))
         # handshake
         if to_sock(conn, {'name': self.name}):
@@ -62,6 +66,7 @@ class AppBase(ABC):
         yield conn
         self.connected.clear()
         conn.close()
+        self.terminate.set()
 
     #
     @contextmanager
@@ -69,12 +74,17 @@ class AppBase(ABC):
         """Route data"""
         incoming = queue.Queue()
         def handler():
-            while not self.terminate.is_set():
+            while not self.to_stop:
                 try:
                     data = incoming.get(timeout=2)
                 except queue.Empty:
                     continue
+                if evt := data.get('event'):
+                    if evt == 'app-terminate':
+                        self.stop()
+                        continue
                 self.logger.debug(data)
+        # --start handler
         handle = threading.Thread(target=handler)
         handle.name = f'{self.name}-router'
         handle.start()
@@ -83,8 +93,9 @@ class AppBase(ABC):
         handle.join()
 
     #
+    @property
     def to_stop(self):
-        return self.events.is_set('terminate')
+        return self.terminate.is_set()
 
     #
     @property

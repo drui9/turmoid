@@ -1,7 +1,19 @@
 # Android Personal Assistant :: Python
 Android personal assistant that runs on devices that support termux.
 
-## Generating build certificates
+
+## `Dependencies`
+``` monospace
+- apt install git #`including ssh-key registration` - todo
+- apt install ssh #`duplex ssh-key login & "android" defined in ssh-config`
+- apt install unzip
+- apt install python3
+- termux, termux-API
+- apt install screen
+- unix runtime
+```
+
+### `Generating build certificates`
 ```
 Generating self-signed certificates:
 1. openssl genrsa -out private.key 4096
@@ -11,7 +23,7 @@ Generating self-signed certificates:
 (step 2) Notice -> Common Name (e.g. server FQDN or YOUR name) = server_hostname
 ```
 
-## `Notes`
+### `Notes`
 - Commands starting with `data =` have a valid output on success.
 - Some API calls have high latency due to termux implementation.
 - Some functionality is only available if termux is running in foreground or running in Termux:Float.

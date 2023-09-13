@@ -6,7 +6,7 @@ import queue
 import json
 
 
-@Base.service(alias='contact-service', autostart='off')
+@Base.service(alias='contact-service', autostart='off') # on!=REQUIRED
 class ContactService(Service):
     def declare(self):
         self.expects('contact-update-request')

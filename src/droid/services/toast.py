@@ -4,7 +4,7 @@ from .service import Service
 from droid.builtin.extras import termux_get
 
 
-@Base.service(alias='toast-service', autostart='off')
+@Base.service(alias='toast-service', autostart='off') # on!=REQUIRED
 class ToastNotificationService(Service):
     def declare(self):
         self.expects('toast-request')
@@ -14,7 +14,7 @@ class ToastNotificationService(Service):
     def start(self):
         """Executes toast notification and send ok if notice had id"""
         with self.core.Subscribe('toast-request') as toast:
-            while not self.to_stop():
+            while not self.to_stop:
                 try:
                     notice = toast.get(timeout=2)
                     if msg := notice['data'].get('message'):
@@ -28,7 +28,7 @@ class ToastNotificationService(Service):
                             if proc.returncode:
                                 out['data']['ok'] = False
                             if notice['data'].get('id'):
-                                self.core.incoming.put(out)
+                                self.post(out)
                 except queue.Empty:
                     continue
             #

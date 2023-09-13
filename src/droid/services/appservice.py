@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from droid.builtin.extras import from_sock, to_sock, termux_get
 
 
-@Base.service(alias='app-service', autostart='on')
+@Base.service(alias='app-service', autostart='on') # on = REQUIRED
 class AppService(Service):
     def declare(self):
         """declare variables"""
@@ -34,6 +34,9 @@ class AppService(Service):
     def start(self):
         """Start and manage apps"""
         try:
+            upd = threading.Thread(target=self.update_manager)
+            upd.name = 'UpdateManager'
+            upd.start()
             with self.Connections():
                 with self.AppManager():
                     self.Session()
@@ -41,6 +44,51 @@ class AppService(Service):
             self.logger.exception('what?')
         finally:
             self.core.terminate.set()
+
+    #
+    def update_manager(self):
+        """Wait for update event and trigger shutdown"""
+        with self.core.Subscribe('update-request') as update:
+            while not self.terminate.is_set():
+                try:
+                    data = update.get(timeout=5)
+                    if not (data := data.get('data')):
+                        continue
+                except queue.Empty:
+                    continue
+                # send notification of update and act on response
+                event = {
+                    'event': 'notification-response',
+                    'data': {'action': 'update-now'}|data
+                }
+                notif_info = {
+                    '-t': 'Update available',
+                    '-c': 'Click to update.',
+                    '--ongoing': None,
+                    '--id': 'update-notice',
+                    '--action': event,    #dict|list[dict]
+                    '--alert-once': None
+                }
+                with self.core.Subscribe('notification-response') as update_notice:
+                    self.core.internal.put({
+                        'event': 'notification-request',
+                        'data': notif_info
+                    })
+                    while not self.to_stop:
+                        try:
+                            note = update_notice.get(timeout=4)
+                        except queue.Empty:
+                            continue
+                        if note['data'].get('action') == 'update-now':
+                            self.post(note|{'event': 'package-manager-request'})
+                            #
+                            if self.core.events.wait('app-update-ready'):
+                                if self.core.events.is_set('update-service-terminate'): # shutdown to update  # noqa: E501
+                                    self.core.stop()
+                                    self.ui['app-runtime']['online'].clear()
+                                    return
+                            break
+                    #
 
     #
     def Session(self):
@@ -140,15 +188,16 @@ class AppService(Service):
                     'message': msg
                 }
             }
-            self.core.incoming.put(toast)
+            self.post(toast)
             while not self.terminate.is_set():
                 try:
                     note = notein.get(timeout=3)
+                    data = note['data']
                 except queue.Empty:
                     self.logger.debug('Toast notification timed out!')
                     continue
-                self.logger.debug(note)
-                break
+                if data['id'] == toast['data']['id']:
+                    break
         with self.ui['app-runtime']['lock']:
             self.ui['app-runtime']['name'] = app
             self.ui['app-runtime']['online'].set()
@@ -205,6 +254,8 @@ class AppService(Service):
     #
     def app_add(self, name, conn):
         """Add app to app-list"""
+        if self.core.terminate.is_set():
+            return
         self.logger.debug(f'Installing app: {name}')
         self.updating.set()
         with self.context:
@@ -263,7 +314,14 @@ class AppService(Service):
         yield
         # close app sockets to alert processes
         with self.context:
-            [v.close() for _, v in self.ui['connected']['connections'].items()]  # noqa: E501
+            disconn = {'event': 'app-terminate', 'data': {'time': time.time()}}
+            for _, conn in self.ui['connected']['connections'].items():
+                try:
+                    if to_sock(conn, disconn):
+                        conn.close()
+                    conn.close()
+                except Exception:
+                    pass
         # --clean-up
         [th.join() for th in handlers]
         self.logger.debug('App manager closed.')

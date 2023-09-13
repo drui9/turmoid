@@ -38,15 +38,14 @@ class Core(Base):
         while not self.terminate.is_set():
             try:
                 event = self.internal.get(timeout=3)
-                # self.logger.debug(event)
+                # self.logger.debug(f"Event: {event['event']}")
             except queue.Empty:
                 continue
             #
-            self.logger.debug(f'Waiting to forward {event["event"]}')
             with self.subscribers['lock']:
                 if (evt := event['event']) in self.subscribers['events']:
                     [i.put(event) for i in self.subscribers['events'][evt]]
-                    self.logger.debug(f'Event({evt}) forwarded.')
+                    # self.logger.debug(f'Event({evt}) forwarded.') # verbose
                     continue
                 self.logger.debug(f'Event dropped: {event["event"]}')
         return
@@ -54,7 +53,6 @@ class Core(Base):
     #
     @contextmanager
     def Subscribe(self, event :str):
-        self.logger.debug(f'Subscribing to {event}')
         with self.register['lock']:
             found = None
             for serv,products in self.register['products'].items():
@@ -65,7 +63,6 @@ class Core(Base):
                 if self.services['servlist'][found]['data']['autostart'] == 'off':
                     if not self.events.is_set(f'{found}-online'):
                         self.internal.put({'event': f'{found}-start'}) # start service
-                        self.logger.debug(f'Waiting for {found}')
                         while not self.terminate.is_set():
                             if self.events.get(f'{found}-online').wait(timeout=7): # wait for service  # noqa: E501
                                 self.logger.debug(f'{found} is online.')
@@ -74,7 +71,6 @@ class Core(Base):
                 else:
                     while not self.terminate.is_set():
                         if self.events.get(f'{found}-online').wait(timeout=7): # wait for service  # noqa: E501
-                            self.logger.debug(f'{found} is online.')
                             break
                         self.logger.debug(f'Timed out waiting for {found}')
         #

@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from droid.builtin.extras import termux_get
 
 
-@Base.service(alias='notification-service', autostart='off')
+@Base.service(alias='notification-service', autostart='off') # on!=REQUIRED
 class NotificationService(Service):
     def declare(self):
         self.expects('notification-request')
@@ -29,11 +29,14 @@ class NotificationService(Service):
             return os.unlink(path)
         #
         with noticefifo():
-            while not self.to_stop():
+            while not self.to_stop:
                 with open(path) as notice:
-                    data = json.load(notice)
-                    self.core.internal.put(data)
-                    self.logger.debug('Notification response received.')
+                    out = json.load(notice)
+                    if evt := out.get("event"):
+                        self.logger.debug(f'Notification: {evt}')
+                    else:
+                        self.logger.debug('Notification.')
+                    self.post(out)
 
     #
     def start(self):
@@ -42,7 +45,7 @@ class NotificationService(Service):
             rec.name = f'FifoReader:{self.noticename}'
             rec.daemon = True
             rec.start()
-            while not self.to_stop():
+            while not self.to_stop:
                 try:
                     notice = notification.get(timeout=2)
                     args = notice['data']
@@ -65,6 +68,7 @@ class NotificationService(Service):
                         out.append(k)
                 #
                 with termux_get(['termux-notification', *out]) as proc:
+                    self.logger.debug('Notification sent.')
                     proc.wait()
                     out = proc.stdout.read() if proc.stdout else None # noqa: E501
                     if proc.returncode:
