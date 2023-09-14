@@ -4,6 +4,7 @@ import queue
 import socket
 import secrets
 import loguru
+import zipfile
 import threading
 import subprocess
 from droid.base import Base

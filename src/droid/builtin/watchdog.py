@@ -34,7 +34,7 @@ class Watchdog(FileSystemEventHandler):
             # if already running, add to schedule
             if self.observer.is_alive():
                 self.observer.schedule(self, directory, recursive=True)
-            return None # block external calls
+            return # block external calls
         return wrapper
 
     def on_any_event(self, event):

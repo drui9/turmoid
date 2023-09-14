@@ -1,8 +1,11 @@
 from droid.apps.app import App
 from droid.base import Base
 
+config = {
+    'name': 'home',
+}
 
-@Base.app(name='blackhole')
+@Base.app(config)
 class Home(App):
     def start(self):
         self.logger.debug(f'{self.name} started.')

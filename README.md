@@ -1,17 +1,28 @@
 # Android Personal Assistant :: Python
 Android personal assistant that runs on devices that support termux.
+A skill of thread safety at every node of a dictionary, with access facilitated by special `path` strings.
+How sweet!
 
+## TODO:
+    - Parse .droid
 
 ## `Dependencies`
 ``` monospace
-- apt install git #`including ssh-key registration` - todo
-- apt install ssh #`duplex ssh-key login & "android" defined in ssh-config`
-- apt install unzip
-- apt install python3
+- apt install file make netcat-openbsd git ssh screen termux-api unzip python3
 - termux, termux-API
-- apt install screen
 - unix runtime
 ```
+
+## `Configurations`
+## `termux`
+    - Install `termux-android`, `termux-API` and optionally `termux-float` from fdroid
+
+### `ssh`
+    - duplex ssh-key login & "android" defined in .ssh/config
+
+### `git`
+    - ssh-key based authentication
+    - complete git-config
 
 ### `Generating build certificates`
 ```

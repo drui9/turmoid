@@ -1,0 +1,10 @@
+file
+make
+netcat-openbsd
+git
+ssh
+ffmpeg
+screen
+termux-api
+unzip
+python3

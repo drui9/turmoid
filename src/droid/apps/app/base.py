@@ -13,18 +13,15 @@ from droid.builtin.events import EventGroup
 
 class AppBase(ABC):
     logger = loguru.logger
-    events = EventGroup()
+    terminate = threading.Event()
+    events = EventGroup(terminate)
 
     # -- start
     def __init__(self, data):
-        self.conn = None
-        self.remote = data['remote']
-        self.events.set_parent(self)
-        self.connected = self.events.add('app-connected')
-        for k,v in data['data'].items():
-            setattr(self, k, v)
+        self.logger.debug(data)
         signal.signal(signal.SIGINT, self.stop)
-        self.activate()
+        # self.activate()
+        return
 
     #
     def activate(self):

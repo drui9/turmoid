@@ -10,23 +10,22 @@ from datetime import datetime
 from contextlib import contextmanager
 from droid.builtin.extras import from_sock, to_sock, termux_get
 
-
-@Base.service(alias='app-service', autostart='on') # on = REQUIRED
-class AppService(Service):
-    def declare(self):
-        """declare variables"""
-        self.ui = { # socket connections
-            'new': queue.Queue(),
-            'connected': {
-                'lock': threading.Lock(),
-                'connections': dict()
-            },
-            'app-runtime': {
-                'name': str(),
-                'lock': threading.Lock(),
-                'online': self.core.events.add('app-runtime')
-            }
+config = {
+    'alias': 'app-service',
+    'autostart': 'off',
+    'ui': {
+        'new': queue.Queue(),
+        'connected': {
+            'lock': threading.Lock(),
+            'connections': dict()
         }
+    }
+}
+
+@Base.service(config)
+class AppService(Service):
+    def initialize(self):
+        """declare variables"""
         self.context = self.ui['connected']['lock']
         self.updating = self.core.events.add('applist-updating')
 
@@ -34,9 +33,6 @@ class AppService(Service):
     def start(self):
         """Start and manage apps"""
         try:
-            upd = threading.Thread(target=self.update_manager)
-            upd.name = 'UpdateManager'
-            upd.start()
             with self.Connections():
                 with self.AppManager():
                     self.Session()
@@ -44,51 +40,6 @@ class AppService(Service):
             self.logger.exception('what?')
         finally:
             self.core.terminate.set()
-
-    #
-    def update_manager(self):
-        """Wait for update event and trigger shutdown"""
-        with self.core.Subscribe('update-request') as update:
-            while not self.terminate.is_set():
-                try:
-                    data = update.get(timeout=5)
-                    if not (data := data.get('data')):
-                        continue
-                except queue.Empty:
-                    continue
-                # send notification of update and act on response
-                event = {
-                    'event': 'notification-response',
-                    'data': {'action': 'update-now'}|data.get('requires', {})
-                }
-                notif_info = {
-                    '-t': 'Update available',
-                    '-c': 'Click to update.',
-                    '--ongoing': None,
-                    '--id': 'update-notice',
-                    '--action': event,    #dict|list[dict]
-                    '--alert-once': None
-                }
-                with self.core.Subscribe('notification-response') as update_notice:
-                    self.core.internal.put({
-                        'event': 'notification-request',
-                        'data': notif_info
-                    })
-                    while not self.to_stop:
-                        try:
-                            note = update_notice.get(timeout=4)
-                        except queue.Empty:
-                            continue
-                        if note['data'].get('action') == 'update-now':
-                            self.post(note|{'event': 'package-manager-request'})
-                            #
-                            if self.core.events.wait('app-update-ready'):
-                                if self.core.events.is_set('droid-update-done'):
-                                    self.core.stop()
-                                    self.ui['app-runtime']['online'].clear()
-                                    return
-                            break
-                    #
 
     #
     def Session(self):

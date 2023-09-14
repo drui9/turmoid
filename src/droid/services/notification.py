@@ -15,8 +15,19 @@ class NotificationService(Service):
         self.expects('notification-request')
         self.produces('notification-response')
         #
+        self.runtime = {
+            'new': queue.Queue(),
+            'pending': set()
+        }
         basedir = '/data/data/com.termux/files/usr/tmp'
         self.noticename = os.path.join(basedir, secrets.token_hex(8))
+        return
+
+    #
+    def executor(self):
+        """Send notifications and monitor their lifetime"""
+        # todo: handle termux-get
+        pass
 
     #
     def notice_receiver(self, path :str):
@@ -57,7 +68,7 @@ class NotificationService(Service):
                 for k, v in args.items():
                     if v:
                         if isinstance(v, dict):
-                            v = f"echo '{json.dumps(v)}'>{self.noticename}"
+                            v = f"echo '{json.dumps(v)}'>{self.noticename};termux-toast -b black -c white '$_executed'"  # noqa: E501
                         elif k == '--id':
                             v = str(v)
                         out.append(k)

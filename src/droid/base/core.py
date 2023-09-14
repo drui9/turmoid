@@ -5,26 +5,32 @@ from droid.base import Base
 from contextlib import contextmanager
 from droid.models import Base as db_base
 
+config = {
+    #
+    'domain': ('127.0.0.1', random.randint(10001, 30003)),
+
+    # data channels
+    'incoming': queue.Queue(),
+    'outgoing': queue.Queue(),
+
+    # name-table
+    'register': {'products': dict(), 'expects': dict()},
+
+    # nodes
+    'nodes': dict()
+}
 
 #
 class Core(Base):
     def __init__(self):
-        self.remote = ('127.0.0.1', random.randint(10001, 30003))
-        db_base.metadata.create_all(bind=self.db)
-        self.events.set_parent(self)
-        # data channels
-        self.outgoing = queue.Queue()
-        self.incoming = queue.Queue()
-        self.internal = queue.Queue()
-        self.register = {
-            'lock': threading.Lock(),
-            'products': dict(),
-            'expects': dict()
-        }
-        self.subscribers = {
-            'lock': threading.Lock(),
-            'events': dict()
-        }
+        self.logger.add("logs/droid_{time}.log")
+        # -- initializations
+        with self.get('core>apps<') as core:
+            self.logger.debug(core)
+            breakpoint()
+            core.update({**config})
+        with self.get('core>database<') as db:
+            db_base.metadata.create_all(bind=db)
         # app loop
         try:
             with self.Services():
@@ -32,29 +38,24 @@ class Core(Base):
         except Exception as e:
             self.logger.exception(e)
 
-    # -- main entry
+    # -- event router main entry
     def start(self):
         """Start droid Core and parse events."""
-        while not self.terminate.is_set():
-            try:
-                event = self.internal.get(timeout=3)
-                # self.logger.debug(f"Event: {event['event']}")
-            except queue.Empty:
-                continue
-            #
-            with self.subscribers['lock']:
-                if (evt := event['event']) in self.subscribers['events']:
-                    [i.put(event) for i in self.subscribers['events'][evt]]
-                    # self.logger.debug(f'Event({evt}) forwarded.') # verbose
+        with self.get('core>apps>incoming>') as  incoming:
+            while not self.terminate.is_set():
+                try:
+                    evt = incoming.get(timeout=5)
+                except queue.Empty:
                     continue
-                self.logger.debug(f'Event dropped: {event["event"]}')
+                self.logger.debug(f'Event dropped: {evt}')
         return
 
     #
     @contextmanager
     def Subscribe(self, event :str):
-        with self.register['lock']:
+        with self.get('core<') as core:
             found = None
+            # breakpoint()
             for serv,products in self.register['products'].items():
                 if event in products:
                     found = serv
@@ -93,17 +94,22 @@ class Core(Base):
     #
     @contextmanager
     def Services(self):
-        for sname, service in self.services['servlist'].items():
-            extra = {'core': self, 'terminate': self.events.get(f'{sname}-terminate')}
-            service['data'] = service['data'] | extra
-            #
-            serv = threading.Thread(target=service['enter'], args=(service['data'],))  # noqa: E501
-            serv.name = sname
-            serv.start()
-            service['runtime']['task'] = serv
+        with self.get('core>database<') as db:
+            with self.get('core>services>enter<') as servlist:
+                for service in servlist:
+                    enter, config = service
+                    alias = config.get('alias', enter.__name__)
+                    online = self.events.add(f'{alias}-online')
+                    extra = {
+                        'db': db,
+                        'core': self,
+                        'online': online,
+                        'events': self.events,
+                        'logger': self.logger
+                    }
+                    #
+                    self.logger.debug(f'{alias} starting...')
+                    th = threading.Thread(target=enter, args=(extra|config,))
+                    th.name = alias
+                    th.start()
         yield
-        # -- terminate services
-        services = self.services['servlist'].items()
-        _= [v['runtime']['terminate'].set() for _, v in services]
-        _= [v['runtime']['online'].clear() for _, v in services]
-        return [v['runtime']['task'].join() for _, v in services if 'task' in v['runtime']]  # noqa: E501
