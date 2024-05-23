@@ -1,7 +1,0 @@
-loguru
-pytube
-requests
-watchdog
-music-tag
-sqlalchemy
-alive-progress

@@ -6,10 +6,11 @@ build_deps := $(rundir)/requirements.txt
 
 
 run: $(clean) $(env)
-	@cd $(rundir) && nice --19 $(python) start.py;
+	@cd $(rundir) && nice -n -5 $(python) start.py;
 
 $(env):
-	python3 -m venv $@ && $(pip) install -r $(build_deps)
+	python -m venv $@ && $(pip) install -r $(build_deps)
 
 clean:
 	@rm -rf **/__pycache__
+

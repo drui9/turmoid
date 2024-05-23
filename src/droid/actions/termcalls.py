@@ -219,3 +219,4 @@ def termux_tts_speak(output):
 @Termux.arg('-h -d -f -l -e -b -r -c -i -q *')
 def termux_microphone_record(output):
 	return output
+

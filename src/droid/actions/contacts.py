@@ -56,3 +56,4 @@ def contacts_update(ctx):
             droid.logger.exception(e)
             session.rollback()
             raise
+

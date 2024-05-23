@@ -1,10 +1,10 @@
+git
 file
 make
-netcat-openbsd
-git
-ssh
-ffmpeg
-screen
-termux-api
 unzip
-python3
+python
+ffmpeg
+openssh
+termux-api
+python-pip
+netcat-openbsd

@@ -74,3 +74,4 @@ def messages_update(ctx):
             # increment offset
             offset += len(data)
     return
+

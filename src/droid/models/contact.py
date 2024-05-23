@@ -14,3 +14,4 @@ class Contact(Base):
 
     def __repr__(self):
         return f'Contact(id={self.id}, {self.name or self.number})'
+

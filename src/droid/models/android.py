@@ -14,3 +14,4 @@ class Android(Base):
 
 	def __repr__(self):
 		return f'Android({self.user}, {self.model}, {self.version})'
+

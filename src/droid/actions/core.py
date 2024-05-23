@@ -128,3 +128,4 @@ class DroidCore:
         """Check termination flag"""
         cls.logger.debug('Stop flag checked.')
         return cls.events.get('terminate').is_set()
+

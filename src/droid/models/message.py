@@ -19,3 +19,4 @@ class Message(Base):
         if self.contact:
             return f'Message({self.contact}, is_read={self.read})'
         return f'Message({self.sender}, is_read={self.read})'
+

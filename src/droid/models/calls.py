@@ -18,3 +18,4 @@ class Call(Base):
         if self.contact:
             return f'Call({self.contact}, duration: {self.duration})'
         return f'Call({self.number}, duration: {self.duration})'
+
