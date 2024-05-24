@@ -1,3 +1,6 @@
+# custom
+crypt/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -5,12 +8,6 @@ __pycache__/
 .vscode
 # C extensions
 *.so
-
-# build artifacts
-.build/
-
-# config files
-autogram.json
 
 # temp dir 
 Downloads/
