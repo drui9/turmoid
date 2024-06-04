@@ -1,8 +1,12 @@
+src := start.py
 ossl := openssl
 keydir := crypt
 pkey := $(keydir)/private.key
 signreq := $(keydir)/signreq.csr
 ckey := $(keydir)/certificate.pem
+
+run: $(ckey) $(src)
+	python $(src)
 
 $(ckey): $(signreq)
 	$(ossl) x509 -req --days 365 -in $< -signkey $(pkey) -out $@
