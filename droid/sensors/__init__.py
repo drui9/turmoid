@@ -1,17 +1,17 @@
 import json
 import subprocess as sp
 from loguru import logger
-from contextlib import contextmanager
-# --
 from .sensor import Sensors
+from contextlib import contextmanager
 
+# --
 @Sensors.evt.on('interval')
 def get_interval(vals):
     return min(vals)
 
-@logger.catch
-@Sensors.sense('ACCELEROMETER')
-def accelerometer(sensor, *args):
+# --
+@Sensors.sense()
+def listen(sensor, *args):
     @contextmanager
     def runner(interval):
         p = sp.Popen(['termux-sensor', '-s', sensor, '-d', str(interval)], stdout=sp.PIPE)
@@ -37,11 +37,11 @@ def accelerometer(sensor, *args):
                     if b']}}' in data:
                         try:
                             for _, v in json.loads(data.decode()).items():
-                                ok, _ = Sensors.evt.emit('accelerometer', *v['values'])
+                                ok, err = Sensors.evt.emit(sensor.lower(), *v['values'])
                                 if not ok: # errored/no consumers
                                     scope['active'].clear()
                                     p.kill()
-                                    logger.debug('{} killed.', sensor)
+                                    logger.debug('{} stopped:{}:{}', sensor, ok, err)
                             if not scope['active'].is_set():
                                 break
                         except Exception: pass
@@ -51,7 +51,3 @@ def accelerometer(sensor, *args):
                 data += ch
     logger.debug('{} thread stopped.', sensor)
 
-
-# -- todo:
-# "LIGHT",
-# "PROXIMITY"

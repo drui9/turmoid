@@ -5,9 +5,13 @@ from .tool import Emitter
 from loguru import logger
 # --
 from .sensors.listeners import (
+    proximal,
+    flipped,
     putdown,
     picked,
-    shake
+    shake,
+    dusk,
+    dawn
 )
 
 # --
@@ -21,7 +25,7 @@ class Droid:
     @contextmanager
     def session(self):
         logger.debug('Schedulling a new session.')
-        event = shake()
+        event = picked()
         print(event)
         yield
         logger.debug('Session closed.')

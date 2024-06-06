@@ -9,15 +9,17 @@ class Sensors:
     register = dict()
     # --
     @classmethod
-    def sense(cls, sensor):
+    def sense(cls):
         def wrapper(func):
-            if sensor not in cls.register:
-                cls.register[sensor] = {
-                    'readers': list(),
-                    'active': Event()
-                }
             @contextmanager
             def context(**kwargs):
+                assert 'sensor' in kwargs, 'Missing sensor name!'
+                sensor = kwargs.pop('sensor').upper()
+                if sensor not in cls.register:
+                    cls.register[sensor] = {
+                        'readers': list(),
+                        'active': Event()
+                    }
                 # -- add to readers
                 activate = False
                 cls.register[sensor]['readers'].append(kwargs)
@@ -30,7 +32,6 @@ class Sensors:
                     args = (sensor, *kwargs, cls.register[sensor])
                     # --
                     t = Thread(target=func, args=args)
-                    # t.daemon = True
                     t.start()
                 yield
                 # -- pop from readers
