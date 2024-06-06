@@ -21,13 +21,14 @@ class Emitter:
 
     def emit(self, event, *args, **kwargs):
         err = list()
+        ok = list()
         for source in self.fetch(event):
             for handler in source.handlers[event]:
                 try:
-                    handler(*args, **kwargs)
+                    ok.append(handler(*args, **kwargs))
                 except Exception as e:
                     err.append((e, event, handler, source))
-        return err
+        return ok, err
 
     def remove(self, event, handler):
         if handler in self.handlers[event]:

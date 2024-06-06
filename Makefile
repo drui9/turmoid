@@ -1,12 +1,12 @@
 src := start.py
 ossl := openssl
-keydir := crypt
+keydir := secrets
 pkey := $(keydir)/private.key
 signreq := $(keydir)/signreq.csr
 ckey := $(keydir)/certificate.pem
 
-run: $(ckey) $(src)
-	python $(src)
+run: prep $(ckey) $(src)
+	@python $(src)
 
 $(ckey): $(signreq)
 	$(ossl) x509 -req --days 365 -in $< -signkey $(pkey) -out $@
@@ -20,9 +20,9 @@ $(pkey): $(keydir)
 $(keydir):
 	mkdir $@
 
-build: clean
-	@make -s -f build/Makefile.build
+prep: $(keydir)
+	@touch $</*
 
 clean:
-	@rm -rf .build
+	@rm -rf **/__pycache__ **/**/__pycache__
 

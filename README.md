@@ -1,76 +1,66 @@
-from .home import Home  # noqa: F401
-from .music import Music # noqa: F401
-
-"""notes
-Events:
-    - internet connected/disconnected
-    - new message
-    - new file created
-    - new missed call
-    - mpesa balance changed
-    - clipboard copied
-    - battery low/charged
-    - laptop connected/disconnected
-    - wifi connected/disconnected on/off
-    - music started/paused
-    - notification response
-    - location update
-
-Actions:
-    - send message
-    - torch on/off
-    - wifi on/off
-    - vibrate
-    - list sms/contacts/call logs
-    - camera
-    - microphone record
-    - location get
-    - send notification
-    - notification remove
-    - fingerprint
-    - dialog
-    - tts
-"""
+<img width="96" src="turmoid.png" alt="Turmoid project icon">
 # Android Personal Assistant :: Python
-Android personal assistant that runs on devices that support termux.
-A skill of thread safety at every node of a dictionary, with access facilitated by special `path` strings.
-How sweet!
+Android personal assistant on termux app
 
-## TODO:
-    - Parse .droid
 
-## `Dependencies`
+## Dependencies
 ``` monospace
-- apt install file make netcat-openbsd git ssh screen termux-api unzip python3
+- Android device, no root
 - termux, termux-API
 - unix runtime
 ```
 
-## `Configurations`
-## `termux`
-    - Install `termux-android`, `termux-API` and optionally `termux-float` from fdroid
+### Details...
+- Some functionality is only available if termux is running in foreground.Consider termux-float app extension.
+- todo:
+```monospace
+Triggers:
+    - sensors:
+        * picked up, put down, shake, flip
+    - new message
+    - new file created
+    - new missed call
+    - clipboard copied
+    - battery: charger plugged / unplugged
+    - bluetooth: connected/disconnected
+    - wifi connected/disconnected on/off
 
-### `ssh`
-    - duplex ssh-key login & "android" defined in .ssh/config
+Contexts:
+    - internet connected/disconnected
+    - music playing/stopped
+    - location home/away
+    - battery low/charged
 
-### `git`
-    - ssh-key based authentication
-    - complete git-config
+Actions:
+    - message:
+        * search, send, new
+    - torch:
+        * on/off
+        * auto on light-sensor & context
+    - contacts:
+        * list
+        * call logs
+        * import / export
+    - media:
+        * camera photo
+        * microphone record
+        * music play
+    - interaction:
+        * toast
+        * notification
+        * fingerprint
+        * dialog
+        * vibrate
+    - tts:
+        * speak, voice to text
 
-### `Generating build certificates`
+Integrations:
+    - Gmail API - emails
+    - Youtube API - Music
+    - LLM API - Assistant AI
+    - Google speech-recognition
+    - Drive API - document storage
 ```
-Generating self-signed certificates:
-1. openssl genrsa -out private.key 4096
-2. openssl req -new -key private.key -out signreq.csr
-3. openssl x509 -req -days 365 -in signreq.csr -signkey private.key -out certificate.pem
-==
-(step 2) Notice -> Common Name (e.g. server FQDN or YOUR name) = server_hostname
-```
 
-### `Notes`
-- Commands starting with `data =` have a valid output on success.
-- Some API calls have high latency due to termux implementation.
-- Some functionality is only available if termux is running in foreground or running in Termux:Float.
-
-## `Brain storming...`
-Start Droid with default home-app. Home-apps can be added in /apps.
+# Note
+This project is in early development stage. Contributions and donation requests are welcome!
