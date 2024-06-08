@@ -4,12 +4,24 @@ from threading import Event
 from .tool import Emitter
 from loguru import logger
 import subprocess as sp
-import time
 
 # --
 class Droid:
     name = 'main'
     modules = dict()
+    handlers = dict()
+    # --
+    @classmethod
+    def arg(cls, args :str|None=None):
+        """Register command handler function."""
+        def wrapper(fn):
+            def wrapped(fn):
+                name = fn.__name__.replace('_', '-')
+                if not cls.handlers.get(name):
+                    cls.handlers.update({name: {'handler': fn, 'args': args}})
+                return fn
+            return wrapped(fn)
+        return wrapper
     # --
     @classmethod
     def module(cls):
@@ -23,14 +35,36 @@ class Droid:
         self.sence = Sensors()
         self.terminate = Event()
         return self.sence.evt.child(self)
-
+    # --
+    def query(self, cmd :list):
+        """Validate and execute cmd[0] with cmd[1:] arguments"""
+        if cmd[0] not in self.handlers:
+            raise RuntimeError(f'Handler for [{cmd}] not registered!')
+        for arg in cmd[1:]:
+            if arg not in (args := self.handlers[cmd[0]]['args']):
+                # if '-' in arg:
+                #     prev_index = arg.find('-') - 1
+                #     if arg[prev_index] != '\\':
+                #         raise RuntimeError(f'Please escape [-] in argument <{arg}> for {cmd[0]}.')
+                if '*' not in args:
+                    invalid = [i for i in cmd[1:] if i not in args]
+                    raise RuntimeError(f'Invalid parameter(s) {invalid} for {cmd[0]}')
+        #
+        try:
+            print(cmd)
+            ret = self.exec(cmd, capture_output=True, timeout=10)
+            if not ret.returncode:
+                return self.handlers[cmd[0]]['handler'](ret.stdout.read())
+            raise RuntimeError(f'Exec:{cmd} failed with code: {ret.returncode}')
+        except Exception as e:
+            return False, e
+    # --
     @contextmanager
     def session(self):
         logger.debug('Schedulling a new session.')
-        with self.listen(4040) as nc:
-            nc.stdin.write(b'>>')
-            nc.stdin.flush()
-            print(nc.stdout.readline())
+        action = 'termux-toast "hello, world!"'
+        out = self.query(['termux-notification', '-t', 'Start:Droid', '-c', 'Click me!', '--action', action])
+        print(out)
         yield
         logger.debug('Closing session.')
         self.emit('shutdown')
@@ -58,9 +92,10 @@ class Droid:
         task.wait()
         return task.returncode
 
-    def exec(self, cmd, capture_output=False, timeout=None):
+    def exec(self, cmd :list|str, capture_output=False, timeout=None):
+        cmd = cmd.split(' ') if isinstance(cmd, str) else cmd
         out, err = (sp.PIPE, sp.PIPE) if capture_output else (None, None)
-        task = sp.Popen(cmd.split(' '), stdout=out, stderr=err)
+        task = sp.Popen(cmd, stdout=out, stderr=err)
         if timeout != None:
             try:
                 task.wait(timeout=timeout)
@@ -70,7 +105,7 @@ class Droid:
                 task.wait()
         else:
             task.wait()
-        return task.returncode
+        return task
 
     def on(self, *args, **kwargs):
         return self.evt.on(*args, **kwargs)

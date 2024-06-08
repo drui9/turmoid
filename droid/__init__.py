@@ -9,6 +9,7 @@ from .sensors.listeners import (
     dawn
 )
 from .modules import Torch
+from .termcalls import *
 
 def create_app():
     return Droid()
