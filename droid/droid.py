@@ -1,9 +1,11 @@
+from droid.tool.schedule import Scheduler
 from droid.tool.sensors import Sensor
 from contextlib import contextmanager
 from threading import Lock, Thread
 from loguru import logger
 from .core import Core
 import signal
+import time
 
 # --
 class Droid(Core):
@@ -13,25 +15,25 @@ class Droid(Core):
             'lock': Lock(),
             'items': list()
         }
+        self.scheduler = Scheduler()
         self.sensor = Sensor(self.terminate)
         signal.signal(signal.SIGINT, self.shutdown)
         return self.on('droid.SHUTDOWN', self.shutdown)
+    #--
+    @Scheduler.add(3)
+    def cron(self):
+        logger.debug('Crontab')
+    #--
+    @Scheduler.add(7)
+    def cron2(self):
+        logger.debug('Crontab2')
     # --
     @contextmanager
     def session(self):
         logger.debug('Schedulling a new session.')
-        logger.debug(self.sensor.register['filters'])
-        with self.sensor.on('held,shake') as filt:
-            with self.sensor.sense('accelerometer', 300) as s1:
-                with self.sensor.sense('accelerometer', 300) as s2:
-                    held, shake = filt
-                    def reader(who):
-                        for what in who:
-                            if isinstance(what, str):
-                                logger.debug(what)
-                    t1 = Thread(target=reader, args=(held(s1),))
-                    t2 = Thread(target=reader, args=(shake(s2),))
-                    t1.start(), t2.start(), t1.join(), t2.join()
+        for sleep in self.scheduler.schedule(self.terminate):
+            print(sleep)
+            time.sleep(1)
         yield
         logger.debug('Session ended.')
         self.emit('droid.SHUTDOWN')

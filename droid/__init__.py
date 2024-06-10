@@ -1,4 +1,5 @@
-from droid.main import Droid
+from droid.droid import Droid
+# --
 from droid.modules import *
 from droid.tool.termcall import *
 from droid.tool.sensors import *
