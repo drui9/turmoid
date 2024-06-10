@@ -1,5 +1,5 @@
 from json import loads, JSONDecodeError
-from .main import Droid
+from droid import Droid
 
 # -- start --
 @Droid.arg('-h')

@@ -1,3 +1,6 @@
+from loguru import logger
+
+# --
 class Emitter:
     def __init__(self):
         self.handlers = {}
@@ -13,21 +16,22 @@ class Emitter:
     def fetch(self, event):
         out = list()
         if event in self.handlers:
-            out.append(self)
+            out.extend(self.handlers[event])
         for ch in self.children:
             if event in ch.handlers:
-                out.append(ch)
+                out.extend(ch.handlers[event])
         return out
 
     def emit(self, event, *args, **kwargs):
         err = list()
         ok = list()
-        for source in self.fetch(event):
-            for handler in source.handlers[event]:
-                try:
-                    ok.append(handler(*args, **kwargs))
-                except Exception as e:
-                    err.append((e, event, handler, source))
+        for handler in self.fetch(event):
+            try:
+                ok.append(handler(*args, **kwargs))
+            except Exception as e:
+                e.add_note(event)
+                logger.exception('what?')
+                err.append(handler)
         return ok, err
 
     def remove(self, event, handler):

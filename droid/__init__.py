@@ -1,15 +1,7 @@
 from droid.main import Droid
-from .sensors.listeners import (
-    proximal,
-    putdown,
-    flipped,
-    picked,
-    shake,
-    dusk,
-    dawn
-)
-from .modules import Torch
-from .termcalls import *
+from droid.modules import *
+from droid.tool.termcall import *
+from droid.tool.sensors import *
 
 def create_app():
     return Droid()
