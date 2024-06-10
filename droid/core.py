@@ -59,9 +59,11 @@ class Core:
         #
         ret = self.exec(cmd, capture_output=True, timeout=10)
         try:
-            if not ret.returncode:
-                return True, self.handlers[cmd[0]]['handler'](ret.stdout.read())
-            raise RuntimeError(f'Exec:{cmd} failed with code: {ret.returncode}')
+            if not (out := ret.stdout.read()):
+                if err := ret.stderr.read().decode().strip():
+                    raise RuntimeError(err)
+                raise RuntimeError(f'{" ".join(cmd)} failed : {ret.returncode}\n{ret.stdout.read().decode()}')
+            return True, self.handlers[cmd[0]]['handler'](out.decode())
         except Exception as e:
             e.add_note(ret.stderr.read().decode())
             return False, e

@@ -6,8 +6,6 @@ from threading import Lock
 from loguru import logger
 from .core import Core
 import signal
-import time
-import os
 
 # --
 class Droid(Core):
@@ -26,10 +24,6 @@ class Droid(Core):
     @contextmanager
     def session(self):
         logger.debug('Schedulling a new session.')
-        self.dirmon.watch('.', False)
-        os.system('touch README.md')
-        time.sleep(1)
-        self.dirmon.stop()
         yield
         logger.debug('Session ended.')
         self.emit('droid.SHUTDOWN')
