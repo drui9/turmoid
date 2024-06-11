@@ -1,4 +1,5 @@
 <img width="96" src="turmoid.png" alt="Turmoid project icon">
+
 # Android Personal Assistant :: Python
 Android personal assistant on termux app
 
