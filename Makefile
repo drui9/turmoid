@@ -1,6 +1,8 @@
+env := .venv
 src := start.py
 ossl := openssl
 keydir := secrets
+deps := requirements.txt
 pkey := $(keydir)/private.key
 signreq := $(keydir)/signreq.csr
 ckey := $(keydir)/certificate.pem
@@ -26,4 +28,9 @@ prep: $(keydir)
 clean:
 	@rm -rf **/__pycache__ **/**/__pycache__ **/**/**/__pycache__
 
+$(env):
+	python -m venv $@
+
+install: $(env)
+	@./$(env)/bin/pip install -r $(deps)
 
