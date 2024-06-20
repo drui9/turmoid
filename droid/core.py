@@ -1,14 +1,18 @@
 import subprocess as sp
 from loguru import logger
+from threading import Lock
 from threading import Event
 from .tool.emitter import Emitter
 from contextlib import contextmanager
 
 # --
-class Core:
-    evt = Emitter()
+class Core(Emitter):
+    context = { # [emit] record
+        'lock': Lock(),
+        'events': list()
+    }
     modules = dict() # registered modules
-    handlers = dict() # termux calls
+    term_handlers = dict() # termux calls
     # --
     @classmethod
     def arg(cls, args :str|None=None):
@@ -16,8 +20,8 @@ class Core:
         def wrapper(fn):
             def wrapped(fn):
                 name = fn.__name__.replace('_', '-')
-                if not cls.handlers.get(name):
-                    cls.handlers.update({name: {'handler': fn, 'args': args}})
+                if not cls.term_handlers.get(name):
+                    cls.term_handlers.update({name: {'handler': fn, 'args': args}})
                 return fn
             return wrapped(fn)
         return wrapper
@@ -32,27 +36,21 @@ class Core:
 
     # --
     def __init__(self):
+        super().__init__()
         self.terminate = Event()
-        self.events = dict() # -- hold self.get(...) event objects
         for mod in self.modules:
             mod.app = self # pointer to main activity
             self.modules[mod].update({'name': mod.__name__})
             module = mod(self.modules[mod])
             self.modules[mod]['instance'] = module
 
-    # ---
-    def get(self, evt):
-        if evt not in self.events:
-            self.events[evt] = Event()
-        return self.events[evt]
-
     # --
     def query(self, cmd :list):
         """Validate and execute cmd[0] with cmd[1:] arguments"""
-        if cmd[0] not in self.handlers:
+        if cmd[0] not in self.term_handlers:
             raise RuntimeError(f'Handler for [{cmd}] not registered!')
         for arg in cmd[1:]:
-            if arg not in (args := self.handlers[cmd[0]]['args']):
+            if arg not in (args := self.term_handlers[cmd[0]]['args']):
                 if '*' not in args:
                     invalid = [i for i in cmd[1:] if i not in args]
                     raise RuntimeError(f'Invalid parameter(s) {invalid} for {cmd[0]}')
@@ -63,7 +61,7 @@ class Core:
                 if err := ret.stderr.read().decode().strip():
                     raise RuntimeError(err)
                 raise RuntimeError(f'{" ".join(cmd)} failed : {ret.returncode}\n{ret.stdout.read().decode()}')
-            return True, self.handlers[cmd[0]]['handler'](out.decode())
+            return True, self.term_handlers[cmd[0]]['handler'](out.decode())
         except Exception as e:
             e.add_note(ret.stderr.read().decode())
             return False, e
@@ -94,14 +92,15 @@ class Core:
             task.wait()
         return task
 
-    def on(self, *args, **kwargs):
-        return self.evt.on(*args, **kwargs)
-
     def emit(self, *args, **kwargs):
-        return self.evt.emit(*args, **kwargs)
+        evt = [arg for arg in args if isinstance(arg, str) and 'droid' in arg][0]
+        with self.context['lock']:
+            self.context['events'].append(evt)
+        return super().emit(*args, **kwargs)
 
     def shutdown(self, *_):
+        if self.terminate.is_set():
+            return
         self.terminate.set()
-        self.emit('droid.TERMINATE')
-        return logger.debug('Terminated.')
+        return logger.info('Terminated.')
 

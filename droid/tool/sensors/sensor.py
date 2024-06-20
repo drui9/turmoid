@@ -34,6 +34,7 @@ class Sensor:
             cls.register['filters'][name] |= {func.__name__: func}
             return func
         return wrapper
+    # --
     @classmethod
     @contextmanager
     def on(cls, filt :str):

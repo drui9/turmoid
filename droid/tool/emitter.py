@@ -3,7 +3,7 @@ from loguru import logger
 # --
 class Emitter:
     def __init__(self):
-        self.handlers = {}
+        self.evt_handlers = {}
         self.children = list()
 
     def child(self, chld):
@@ -15,11 +15,11 @@ class Emitter:
 
     def fetch(self, event):
         out = list()
-        if event in self.handlers:
-            out.extend(self.handlers[event])
+        if event in self.evt_handlers:
+            out.extend(self.evt_handlers[event])
         for ch in self.children:
-            if event in ch.handlers:
-                out.extend(ch.handlers[event])
+            if event in ch.evt_handlers:
+                out.extend(ch.evt_handlers[event])
         return out
 
     def emit(self, event, *args, **kwargs):
@@ -35,22 +35,22 @@ class Emitter:
         return ok, err
 
     def remove(self, event, handler):
-        if handler in self.handlers[event]:
-            self.handlers[event].remove(handler)
-        return handler not in self.handlers[event]
+        if handler in self.evt_handlers[event]:
+            self.evt_handlers[event].remove(handler)
+        return handler not in self.evt_handlers[event]
 
     def on(self, event, *args):
         if args:
-            if event not in self.handlers:
-                self.handlers[event] = list()
+            if event not in self.evt_handlers:
+                self.evt_handlers[event] = list()
             for handler in args:
-                if handler not in self.handlers[event]:
-                    self.handlers[event].append(handler)
+                if handler not in self.evt_handlers[event]:
+                    self.evt_handlers[event].append(handler)
         else:
             def wrapper(handler):
-                if event not in self.handlers:
-                    self.handlers[event] = list()
-                if handler not in self.handlers[event]:
-                    self.handlers[event].append(handler)
+                if event not in self.evt_handlers:
+                    self.evt_handlers[event] = list()
+                if handler not in self.evt_handlers[event]:
+                    self.evt_handlers[event].append(handler)
             return wrapper
 

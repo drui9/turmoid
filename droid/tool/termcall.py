@@ -157,7 +157,7 @@ def termux_telephony_deviceinfo(output):
 def termux_telephony_call(output):
 	return output
 
-@Droid.arg('help info play pause stop')
+@Droid.arg('help info play pause stop *')
 def termux_media_player(output):
 	return output
 
