@@ -1,3 +1,5 @@
+import queue
+import socket
 import subprocess as sp
 from loguru import logger
 from threading import Lock
@@ -9,8 +11,10 @@ from contextlib import contextmanager
 class Core(Emitter):
     context = { # [emit] record
         'lock': Lock(),
-        'events': list()
+        'events': list(),
+        'source': queue.Queue()
     }
+    terminate = Event()
     modules = dict() # registered modules
     term_handlers = dict() # termux calls
     # --
@@ -37,7 +41,6 @@ class Core(Emitter):
     # --
     def __init__(self):
         super().__init__()
-        self.terminate = Event()
         for mod in self.modules:
             mod.app = self # pointer to main activity
             self.modules[mod].update({'name': mod.__name__})
@@ -66,16 +69,22 @@ class Core(Emitter):
             e.add_note(ret.stderr.read().decode())
             return False, e
 
-    @contextmanager
-    def listen(self, port):
-        cmd = f'nc -l localhost {port}'.split(' ')
-        line_in, line_out, line_err = (sp.PIPE, sp.PIPE, sp.PIPE)
-        task = sp.Popen(cmd, stdin=line_in, stdout=line_out, stderr=line_err)
-        yield task
-        if task.returncode == None:
-            task.kill()
-        task.wait()
-        return task.returncode
+    def listen(self, port: int, stop: Event):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(('localhost', port))
+        sock.settimeout(10)
+        sock.listen()
+        while not self.terminate.is_set():
+            if stop.is_set():
+                sock.close()
+                break
+            try:
+                conn, addr = sock.accept()
+                conn.settimeout(3)
+                line = conn.recv(1024).decode()
+                yield line
+            except Exception:
+                continue
 
     def exec(self, cmd :list|str, capture_output=False, timeout=None):
         cmd = cmd.split(' ') if isinstance(cmd, str) else cmd
@@ -91,12 +100,6 @@ class Core(Emitter):
         else:
             task.wait()
         return task
-
-    def emit(self, *args, **kwargs):
-        evt = [arg for arg in args if isinstance(arg, str) and 'droid' in arg][0]
-        with self.context['lock']:
-            self.context['events'].append(evt)
-        return super().emit(*args, **kwargs)
 
     def shutdown(self, *_):
         if self.terminate.is_set():

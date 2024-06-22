@@ -13,7 +13,7 @@ class Sensor:
         'parser': None,
         'lock': Lock(),
         'changed': Event(),
-        'interval': 100,
+        'interval': 300,
         'sensors': dict(),
         'filters': dict()
     }

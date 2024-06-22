@@ -8,7 +8,7 @@ signreq := $(keydir)/signreq.csr
 ckey := $(keydir)/certificate.pem
 
 run: prep $(ckey) $(src)
-	@python $(src)
+	@$(env)/bin/python $(src)
 
 $(ckey): $(signreq)
 	$(ossl) x509 -req --days 365 -in $< -signkey $(pkey) -out $@
@@ -22,11 +22,8 @@ $(pkey): $(keydir)
 $(keydir):
 	mkdir $@
 
-prep: $(keydir)
+prep: $(env) $(keydir)
 	@touch $</*
-
-clean:
-	@rm -rf **/__pycache__ **/**/__pycache__ **/**/**/__pycache__
 
 $(env):
 	python -m venv $@
@@ -34,3 +31,5 @@ $(env):
 install: $(env)
 	@./$(env)/bin/pip install -r $(deps)
 
+clean:
+	@rm -rf **/__pycache__ **/**/__pycache__ **/**/**/__pycache__

@@ -1,5 +1,5 @@
-from autogram import Autogram, Start
 from droid import create_app
+from autogram import Start
 import os
 
 CONFIG_PATH = 'secrets/turmoid.json'
@@ -13,7 +13,4 @@ def main():
         app.run()
 
 if __name__ == '__main__':
-    if os.getenv('MODE', 'dev') == 'dev':
-        main()
-    elif not (child := os.fork()):
-        main()
+    main()

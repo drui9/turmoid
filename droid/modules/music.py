@@ -1,6 +1,7 @@
 import time
 import glob
 from droid import Droid
+from loguru import logger
 from threading import Event
 from threading import Lock, Thread
 
@@ -37,10 +38,7 @@ class Music:
     def music(self):
         self.context['active'].set()
         with self.context['worker']['lock']:
-            song = self.songs[0]
-            self.app.query(['termux-media-player', 'play', song])
-            self.context['on'].set()
-            time.sleep(10)
+            logger.info(self.name)
             # --
             if self.context['on'].is_set():
                 self.app.query(['termux-media-player', 'stop'])

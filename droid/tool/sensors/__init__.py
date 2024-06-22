@@ -1,7 +1,8 @@
 import json
 from .filters import *
-from .sensor import Sensor
 from loguru import logger
+from .sensor import Sensor
+
 #--
 @Sensor.parser()
 def listen(p):
