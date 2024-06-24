@@ -61,7 +61,7 @@ class Core(Emitter):
     # <> call a termux method
     def query(self, cmd :list):
         """Validate and execute cmd[0] with cmd[1:] arguments"""
-        with self.context['termux']['handlers']:
+        with self.context['termux']['lock']:
             if cmd[0] not in self.context['termux']['handlers']:
                 raise RuntimeError(f'Handler for [{cmd}] not registered!')
             for arg in cmd[1:]:
@@ -74,14 +74,13 @@ class Core(Emitter):
         try:
             if not (out := ret.stdout.read()):
                 if err := ret.stderr.read().decode().strip():
-                    raise RuntimeError(err)
-                raise RuntimeError(f'{" ".join(cmd)} failed : {ret.returncode}\n{ret.stdout.read().decode()}')
+                    return False, f'{" ".join(cmd)} failed : {ret.returncode}\n{err}'
             with self.context['termux']['lock']:
                 handler = self.context['termux']['handlers'][cmd[0]]['handler']
             return True, handler(out.decode())
         except Exception as e:
             e.add_note(ret.stderr.read().decode())
-            return False, e
+            raise
     # </>
 
     # <> run a network listener
@@ -112,8 +111,8 @@ class Core(Emitter):
     # <> Execute a subprocess task
     def exec(self, cmd :list|str, capture_output=False, timeout=None):
         cmd = cmd.split(' ') if isinstance(cmd, str) else cmd
-        out, err = (sp.PIPE, sp.PIPE) if capture_output else (None, None)
-        task = sp.Popen(cmd, stdout=out, stderr=err)
+        sin, out, err = (sp.PIPE, sp.PIPE, sp.PIPE) if capture_output else (None, None, None)
+        task = sp.Popen(cmd, stdin=sin, stdout=out, stderr=err)
         if timeout != None:
             try:
                 task.wait(timeout=timeout)
@@ -127,7 +126,7 @@ class Core(Emitter):
     # </>
 
     # <> shut down
-    def shutdown(self, *_):
+    def shutdown(self, *args, **kwargs):
         if self.terminate.is_set():
             return
         self.terminate.set()

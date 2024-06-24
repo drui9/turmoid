@@ -2,30 +2,20 @@ from loguru import logger
 
 # --
 class Emitter:
-    def __init__(self):
-        self.evt_handlers = {}
-        self.children = list()
+    evt_handlers = {}
+    children = list()
 
-    def child(self, chld):
-        if isinstance(chld, type(self)):
-            return self.children.append(chld)
-        elif hasattr(chld, 'evt'):
-            return self.children.append(chld.evt)
-        raise RuntimeError('Invalid child event emitter!')
+    @classmethod
+    def fetch(cls, event):
+        if event in cls.evt_handlers:
+            return cls.evt_handlers[event]
+        return list()
 
-    def fetch(self, event):
-        out = list()
-        if event in self.evt_handlers:
-            out.extend(self.evt_handlers[event])
-        for ch in self.children:
-            if event in ch.evt_handlers:
-                out.extend(ch.evt_handlers[event])
-        return out
-
-    def emit(self, event, *args, **kwargs):
+    @classmethod
+    def emit(cls, event, *args, **kwargs):
         err = list()
         ok = list()
-        for handler in self.fetch(event):
+        for handler in cls.fetch(event):
             try:
                 ok.append(handler(*args, **kwargs))
             except Exception as e:
@@ -34,23 +24,24 @@ class Emitter:
                 err.append(handler)
         return ok, err
 
-    def remove(self, event, handler):
-        if handler in self.evt_handlers[event]:
-            self.evt_handlers[event].remove(handler)
-        return handler not in self.evt_handlers[event]
+    @classmethod
+    def remove(cls, event, handler):
+        if handler in cls.evt_handlers[event]:
+            cls.evt_handlers[event].remove(handler)
+        return handler not in cls.evt_handlers[event]
 
-    def on(self, event, *args):
+    @classmethod
+    def on(cls, event, *args):
+        def wrapper(handler):
+            if event not in cls.evt_handlers:
+                cls.evt_handlers[event] = list()
+            if handler not in cls.evt_handlers[event]:
+                cls.evt_handlers[event].append(handler)
         if args:
-            if event not in self.evt_handlers:
-                self.evt_handlers[event] = list()
+            if event not in cls.evt_handlers:
+                cls.evt_handlers[event] = list()
             for handler in args:
-                if handler not in self.evt_handlers[event]:
-                    self.evt_handlers[event].append(handler)
-        else:
-            def wrapper(handler):
-                if event not in self.evt_handlers:
-                    self.evt_handlers[event] = list()
-                if handler not in self.evt_handlers[event]:
-                    self.evt_handlers[event].append(handler)
-            return wrapper
+                if handler not in cls.evt_handlers[event]:
+                    cls.evt_handlers[event].append(handler)
+        return wrapper
 

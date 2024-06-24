@@ -73,36 +73,29 @@ class Scheduler:
     @staticmethod
     def __get_next(start, end, intervals):
         """Get the index of the upcoming routine handler"""
-        index = -1
         if len(intervals) == 1:
             return intervals[0]
         # --
-        found = False
         for i in range(start, end):
             for intv in intervals:
                 if i % intv == 0:
-                    index = i
-                    found = True
-                    break
-            if found: break
-        return index
+                    return i
+        return -1
     # </>
     @classmethod
     def __execute(cls, interval, app):
         """Execute a function routine and handle errors"""
         # <>
-        threads = list()
+        assert (not cls.activities['lock'].locked())
         with cls.activities['lock']:
             for key, task in cls.activities['handlers'][interval].items():
                 try:
-                    task = Thread(target=task['handler'], args=(app,))
-                    task.start()
-                    threads.append(task)
+                    task['handler'](app)
                 except Exception as e:
                     e.add_note(f'Schedule item: {key}')
                     logger.exception('what?')
         # </>
-        return [i.join() for i in threads]
+        return
     #--
     @classmethod
     def schedule(cls, main):
