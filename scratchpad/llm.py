@@ -8,7 +8,7 @@ def main(key):
         'model': "llama3-70b-8192",
         "messages": [{
             'role': "user",
-            'content': "What song goes, all of our tears will be washed in the rain when I find my way back to your arms again."
+            'content': "Explain how to simulate the collapse of a quantum function using two sets of bit arrays together with and bitwise operator."
         }]
     }
     url = 'https://api.groq.com/openai/v1/chat/completions'

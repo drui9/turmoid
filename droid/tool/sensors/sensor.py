@@ -8,12 +8,12 @@ from threading import Thread, Event, Lock
 # --
 class Sensor:
     evt = Emitter()
-    terminate = None
+    terminate :Event
     register = {
         'parser': None,
         'lock': Lock(),
         'changed': Event(),
-        'interval': 300,
+        'interval': -1,
         'sensors': dict(),
         'filters': dict()
     }
@@ -64,7 +64,7 @@ class Sensor:
         with self.register['lock']:
             if self.terminate.is_set():
                 return
-            self.register['interval'] = (self.register['interval'] + interval) // 2
+            self.register['interval'] = interval
             if name not in self.register['sensors']:
                 logger.debug('Adding new sensor: {}', name)
                 self.register['sensors'][name] = [sink]
@@ -87,7 +87,7 @@ class Sensor:
             if not self.register['sensors'][name]:
                 logger.debug('Removing sensor: {}', name)
                 self.register['sensors'].pop(name)
-                self.register['changed'].set()
+            self.register['changed'].set()
     # --
     def reader(self, source):
         while not self.terminate.is_set():
@@ -124,3 +124,4 @@ class Sensor:
             # --
             proc.kill()
             proc.wait()
+

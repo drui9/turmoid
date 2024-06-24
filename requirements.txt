@@ -1,6 +1,6 @@
-SQLAlchemy>=2.0.30
+python-dotenv>=1.0.1
+filelock>=3.15.3
 requests>=2.32.2
 watchdog>=4.0.1
-autogram>=3.6.0
 pexpect>=4.9.0
 pydub>=0.25.1

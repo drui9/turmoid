@@ -9,54 +9,66 @@ from contextlib import contextmanager
 
 # --
 class Core(Emitter):
-    context = { # [emit] record
-        'lock': Lock(),
-        'events': list(),
-        'source': queue.Queue()
+    context = {
+        'events': { # <> [emit] record
+            'lock': Lock(),
+            'items': list(),
+            'source': queue.Queue()
+        },
+        'termux': {
+            'lock': Lock(),
+            'handlers': dict()
+        },
+        'runtime': {
+            'lock': Lock(),
+            'contexts': dict()
+        } # </>
     }
     terminate = Event()
-    modules = dict() # registered modules
-    term_handlers = dict() # termux calls
-    # --
+    # <> add a termux-call
     @classmethod
     def arg(cls, args :str|None=None):
         """Register command handler function."""
         def wrapper(fn):
             def wrapped(fn):
-                name = fn.__name__.replace('_', '-')
-                if not cls.term_handlers.get(name):
-                    cls.term_handlers.update({name: {'handler': fn, 'args': args}})
+                with cls.context['termux']['lock']:
+                    name = fn.__name__.replace('_', '-')
+                    if not cls.context['termux']['handlers'].get(name):
+                        cls.context['termux']['handlers'].update({name: {'handler': fn, 'args': args}})
                 return fn
             return wrapped(fn)
         return wrapper
+    # </>
 
-    # --
-    @classmethod
-    def module(cls):
-        def wrapper(module):
-            cls.modules[module] = dict()
-            return module
-        return wrapper
-
-    # --
+    # <> initialize core
     def __init__(self):
         super().__init__()
-        for mod in self.modules:
-            mod.app = self # pointer to main activity
-            self.modules[mod].update({'name': mod.__name__})
-            module = mod(self.modules[mod])
-            self.modules[mod]['instance'] = module
+        @contextmanager
+        def slot(name: str):
+            # <> Register & fetch runtime data
+            with self.context['runtime']['lock']:
+                if name not in self.context['runtime']['contexts']:
+                    self.context['runtime']['contexts'][name] = {
+                        'lock': Lock(),
+                        'data': dict()
+                    }
+            with self.context['runtime']['contexts'][name]['lock']:
+                yield self.context['runtime']['contexts'][name]['data']
+            # </>
+        self.runtime = slot
+    # </>
 
-    # --
+    # <> call a termux method
     def query(self, cmd :list):
         """Validate and execute cmd[0] with cmd[1:] arguments"""
-        if cmd[0] not in self.term_handlers:
-            raise RuntimeError(f'Handler for [{cmd}] not registered!')
-        for arg in cmd[1:]:
-            if arg not in (args := self.term_handlers[cmd[0]]['args']):
-                if '*' not in args:
-                    invalid = [i for i in cmd[1:] if i not in args]
-                    raise RuntimeError(f'Invalid parameter(s) {invalid} for {cmd[0]}')
+        with self.context['termux']['handlers']:
+            if cmd[0] not in self.context['termux']['handlers']:
+                raise RuntimeError(f'Handler for [{cmd}] not registered!')
+            for arg in cmd[1:]:
+                if arg not in (args := self.context['termux']['handlers'][cmd[0]]['args']):
+                    if '*' not in args:
+                        invalid = [i for i in cmd[1:] if i not in args]
+                        raise RuntimeError(f'Invalid parameter(s) {invalid} for {cmd[0]}')
         #
         ret = self.exec(cmd, capture_output=True, timeout=10)
         try:
@@ -64,28 +76,40 @@ class Core(Emitter):
                 if err := ret.stderr.read().decode().strip():
                     raise RuntimeError(err)
                 raise RuntimeError(f'{" ".join(cmd)} failed : {ret.returncode}\n{ret.stdout.read().decode()}')
-            return True, self.term_handlers[cmd[0]]['handler'](out.decode())
+            with self.context['termux']['lock']:
+                handler = self.context['termux']['handlers'][cmd[0]]['handler']
+            return True, handler(out.decode())
         except Exception as e:
             e.add_note(ret.stderr.read().decode())
             return False, e
+    # </>
 
-    def listen(self, port: int, stop: Event):
+    # <> run a network listener
+    def listen(self, port: int):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(('localhost', port))
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(('127.0.0.1', port))
         sock.settimeout(10)
         sock.listen()
         while not self.terminate.is_set():
-            if stop.is_set():
-                sock.close()
-                break
+            conn = -1
             try:
                 conn, addr = sock.accept()
+                logger.debug('Connection from: {}:{}', addr[0], addr[1])
                 conn.settimeout(3)
-                line = conn.recv(1024).decode()
-                yield line
-            except Exception:
+                out = conn.recv(128)
+                conn.send('--close--'.encode())
+                conn.close()
+                yield out
+            except socket.timeout:
+                if conn != -1:
+                    conn.send('--close--'.encode())
+                    conn.close()
                 continue
+        sock.close()
+    # </>
 
+    # <> Execute a subprocess task
     def exec(self, cmd :list|str, capture_output=False, timeout=None):
         cmd = cmd.split(' ') if isinstance(cmd, str) else cmd
         out, err = (sp.PIPE, sp.PIPE) if capture_output else (None, None)
@@ -100,10 +124,13 @@ class Core(Emitter):
         else:
             task.wait()
         return task
+    # </>
 
+    # <> shut down
     def shutdown(self, *_):
         if self.terminate.is_set():
             return
         self.terminate.set()
-        return logger.info('Terminated.')
+        return logger.debug('Terminated.')
+    # </>
 

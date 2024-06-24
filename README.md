@@ -1,4 +1,10 @@
 <img width="96" src="turmoid.png" alt="Turmoid project icon">
+```monospace
+I thought of this while working on this code:
+You quickly realize you can do anything. That the only limitation to doing everything is time.
+So you must choose something instead. Then do it well.
+    - drui9
+```
 
 # Android Personal Assistant :: Python
 Android personal assistant on termux app

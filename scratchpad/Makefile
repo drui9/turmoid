@@ -1,2 +1,2 @@
 run:
-	python main.py
+	../.venv/bin/python main.py
