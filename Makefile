@@ -19,5 +19,5 @@ $(env):
 	python -m venv $@
 
 clean:
-	@rm -rf **/__pycache__ **/**/__pycache__ **/**/**/__pycache__
+	@rm -rf **/__pycache__ **/**/__pycache__ **/**/**/__pycache__ Logs
 

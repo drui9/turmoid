@@ -1,11 +1,8 @@
-from autogram import Autogram, Start
 from urllib.parse import quote
-from datetime import datetime
+from autogram import Autogram
 from autogram import Autogram
 from loguru import logger
 import requests
-import time
-import json
 
 
 class Telegram(Autogram):
@@ -78,7 +75,7 @@ class Telegram(Autogram):
 
     #--
     @Autogram.add('callback_query')
-    def callback_query(bot: Autogram, update):
+    def callback_query(self, bot: Autogram, update):
         print('callback_query:', update)
         call_id = update['callback_query']['id']
         rep = bot.answerCallbackQuery(call_id, 'Processing')
@@ -96,9 +93,9 @@ class Telegram(Autogram):
         print(self.data('offset'))
 
 #**************** <start>
-@Start('yeatbeat.json')
-def main(config):
-    global api_key
-    bot = Telegram(config)
-    bot.run()
+# @Start('yeatbeat.json')
+# def main(config):
+#     global api_key
+#     bot = Telegram(config)
+#     bot.run()
 #-- </start>

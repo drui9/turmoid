@@ -4,9 +4,9 @@ import os
 
 @contextmanager
 def modvol():
-    os.system('termux-volume music 3')
+    os.system('termux-volume music 2')
+    os.system('termux-volume alarm 9')
     yield
-    os.system('termux-volume music 8')
 
 tts = sp.Popen(['termux-tts-speak', '-r', '1.2', '-s', 'ALARM'], stdin=sp.PIPE)
 with modvol():

@@ -1,5 +1,7 @@
+import time
 import queue
 import socket
+from hashlib import md5
 import subprocess as sp
 from loguru import logger
 from threading import Lock
@@ -10,7 +12,8 @@ from contextlib import contextmanager
 # --
 class Core(Emitter):
     context = {
-        'events': { # <> [emit] record
+        # <> [emit] record
+        'events': {
             'lock': Lock(),
             'items': list(),
             'source': queue.Queue()
@@ -19,15 +22,16 @@ class Core(Emitter):
             'lock': Lock(),
             'handlers': dict()
         },
-        'runtime': {
+        'app': {
             'lock': Lock(),
-            'contexts': dict()
-        } # </>
+            'data': dict()
+        }
+        # </>
     }
     terminate = Event()
     # <> add a termux-call
     @classmethod
-    def arg(cls, args :str|None=None):
+    def command(cls, args :str|None=None):
         """Register command handler function."""
         def wrapper(fn):
             def wrapped(fn):
@@ -40,22 +44,38 @@ class Core(Emitter):
         return wrapper
     # </>
 
+    # <> register an app
+    @classmethod
+    def app(cls, **kwargs):
+        def wrapper(callable):
+            with cls.context['app']['lock']:
+                trigger = kwargs['on']
+                name = callable.__name__
+                cls.context['app']['data'] |= {
+                    name : {
+                        'id': md5((name + trigger).encode()).hexdigest(),
+                        'initialized': Event(),
+                        'active': Event(),
+                        'app': callable
+                    } | kwargs
+                }
+            return callable
+        return wrapper
+    # </>
+
     # <> initialize core
     def __init__(self):
         super().__init__()
+        # <> Register & fetch runtime data
         @contextmanager
         def slot(name: str):
-            # <> Register & fetch runtime data
-            with self.context['runtime']['lock']:
-                if name not in self.context['runtime']['contexts']:
-                    self.context['runtime']['contexts'][name] = {
-                        'lock': Lock(),
-                        'data': dict()
-                    }
-            with self.context['runtime']['contexts'][name]['lock']:
-                yield self.context['runtime']['contexts'][name]['data']
-            # </>
-        self.runtime = slot
+            with self.context['app']['lock']:
+                slot_id = self.context['app']['data'][name]['id']
+                if slot_id not in self.context['app']['data'][name]:
+                    self.context['app']['data'][name][slot_id] = dict()
+            yield self.context['app']['data'][name]
+        # </>
+        self.slot = slot
     # </>
 
     # <> call a termux method
@@ -70,7 +90,10 @@ class Core(Emitter):
                         invalid = [i for i in cmd[1:] if i not in args]
                         raise RuntimeError(f'Invalid parameter(s) {invalid} for {cmd[0]}')
         #
-        ret = self.exec(cmd, capture_output=True, timeout=10)
+        start = time.time()
+        ret = self.exec(cmd, capture_output=True, timeout=12)
+        if (latency := time.time() - start) > 10:
+            logger.debug('Excess exec latency: {}', latency)
         try:
             if not (out := ret.stdout.read()):
                 if err := ret.stderr.read().decode().strip():
@@ -97,12 +120,12 @@ class Core(Emitter):
                 logger.debug('Connection from: {}:{}', addr[0], addr[1])
                 conn.settimeout(3)
                 out = conn.recv(128)
-                conn.send('--close--'.encode())
+                conn.send('--close--\n'.encode())
                 conn.close()
                 yield out
             except socket.timeout:
                 if conn != -1:
-                    conn.send('--close--'.encode())
+                    conn.send('--close--\n'.encode())
                     conn.close()
                 continue
         sock.close()
@@ -126,7 +149,7 @@ class Core(Emitter):
     # </>
 
     # <> shut down
-    def shutdown(self, *args, **kwargs):
+    def shutdown(self, *_, **__):
         if self.terminate.is_set():
             return
         self.terminate.set()

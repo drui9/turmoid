@@ -99,11 +99,16 @@ def shake(source, threshold=20):
 def flipped(source):
     last = None
     for sensor in source:
+        z = sensor[-1]
         if last == None:
-            last = sensor
+            last = z
             continue
         # --
-        if (sensor * (1 / last)) < - 0.8: # 90deg flip
-            yield 'droid.sensor.FLIPPED'
+        if (z * (1 / last)) < - 0.8: # 90deg flip
+            last = z
+            if z > 4:
+                yield 'droid.sensor.FLIP_UP'
+            elif z < -4:
+                yield 'droid.sensor.FLIP_DOWN'
         yield sensor
 

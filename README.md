@@ -1,14 +1,13 @@
 <img width="96" src="turmoid.png" alt="Turmoid project icon">
 ```monospace
-I thought of this while working on this code:
+Food for thought:
 You quickly realize you can do anything. That the only limitation to doing everything is time.
-So you must choose something instead. Then do it well.
+So you must choose something instead. To do something, and to do it well.
     - drui9
 ```
 
 # Android Personal Assistant :: Python
 Android personal assistant on termux app
-
 
 ## Dependencies
 ``` monospace
@@ -75,7 +74,6 @@ This project is in early development stage. Contributions and donation requests 
 ## audio
 ```monospace 
 curl https://api.groq.com/openai/v1/audio/transcriptions   -H "Authorization: bearer ${GROQ_API_KEY}"   -H "Content-Type: multipart/form-data"   -F file="@./sample_audio.m4a"   -F model="whisper-large-v3"
-curl https://api.groq.com/openai/v1/audio/translations   -H "Authorization: bearer ${GROQ_API_KEY}"   -H "Content-Type: multipart/form-data"   -F file="@./sample_song.mp3"   -F model="whisper-large-v3"   -F temperature=0.4
 ```
 
 ## AI function calls

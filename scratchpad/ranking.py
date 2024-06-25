@@ -1,5 +1,3 @@
-import random
-
 songs = ['a.mp3', 'b.mp3', 'c.mp3', 'd.mp3']
 ranks = {}
 matrix = {}
@@ -56,3 +54,4 @@ for song in ranks:
     # --
 ranks = updated
 print(ranks)
+

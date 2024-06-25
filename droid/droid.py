@@ -16,6 +16,7 @@ class Droid(Core):
     lock = '.turmoid'
     def __init__(self):
         self.config = dict()
+        self.notices = list()
         self.dirmon = Watchdog()
         self.scheduler = Scheduler()
         self.sensor = Sensor(self.terminate)
@@ -28,39 +29,25 @@ class Droid(Core):
     @contextmanager
     def session(self):
         nid = 2024
+        self.notices.append(str(nid))
         logger.debug('Schedulling a new session.')
         ok, _ = self.query(['termux-notification', '-i', str(nid), '--ongoing', '-t', 'turmoid', '-c', 'Running'])
         logger.debug('Turmoid notice: <{}>', ok)
-        works = [self.run_scheduler, self.collector]
-        workers = list()
-        for work in works:
-            worker = Thread(target=work)
-            worker.name = 'scheduler'
-            worker.start()
-            workers.append(worker)
-        yield
+        worker = Thread(target=self.network_emitter)
+        worker.name = self.network_emitter.__name__
+        yield worker.start()
+        for notice_id in self.notices:
+            self.query(['termux-notification-remove', str(notice_id)])
         self.emit('droid.SHUTDOWN')
-        self.query(['termux-notification-remove', str(nid)])
-        for worker in workers: worker.join()
+        worker.join()
         logger.debug('Session ended.')
     # </>
     # <> TCP listener for network events
-    def collector(self):
+    def network_emitter(self):
         logger.debug('Starting network listener on port: {}', self.port)
         for event in self.listen(self.port):
-            if self.terminate.is_set(): break
             event = event.decode().strip('\n')
             self.emit(event)
-    # </>
-    # <> Execute scheduled tasks
-    def run_scheduler(self):
-        prev = time.time()
-        for _ in self.scheduler.schedule(self):
-            latency = time.time() - prev
-            logger.debug('Latency: {}', latency)
-            if self.terminate.is_set():
-                break
-            prev = time.time()
     # </>
     # <> Emit events
     def emit(self, *args, **kwargs):
@@ -71,13 +58,24 @@ class Droid(Core):
         lock = FileLock(self.lock)
         with lock:
             with self.session():
-                self.emit('droid.INIT')
+                self.emit('droid.INIT', app=self)
                 while not self.terminate.is_set():
                     try:
                         evt = self.context['events']['source'].get(timeout=5)
-                        event, kwargs = evt[0][0], evt[1] | {'app': self}
+                        event, kwargs = evt[0][0], evt[1]
                         with self.context['events']['lock']:
                             self.context['events']['items'].append((event, time.time()))
+                        try:
+                            with self.context['app']['lock']:
+                                for name, app in self.context['app']['data'].items():
+                                    if event == app['on'] and (not app['active'].is_set()):
+                                        t = Thread(target=app['app'], args=(name, self))
+                                        t.daemon = True
+                                        t.name = name
+                                        t.start()
+                        except Exception:
+                            logger.exception('what?')
+                        logger.info(event)
                         super().emit(event, **kwargs)
                     except queue.Empty:
                         continue

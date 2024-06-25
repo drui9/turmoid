@@ -92,7 +92,9 @@ class Sensor:
     def reader(self, source):
         while not self.terminate.is_set():
             try:
-                yield source.get(timeout=5)
+                while source.qsize():
+                    source.get(0)
+                yield source.get(timeout=3)
             except queue.Empty:
                 continue
     # --

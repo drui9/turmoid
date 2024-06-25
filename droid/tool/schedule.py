@@ -39,9 +39,8 @@ class Scheduler:
                 for name, task in cls.activities['handlers'][interval].items():
                     out |= {
                         name: {
-                            'description': task['description'],
                             'interval': interval,
-                            'context-keys': list(task['context'].keys())
+                            'description': task['description']
                         }
                     }
         return out
@@ -88,11 +87,11 @@ class Scheduler:
         # <>
         assert (not cls.activities['lock'].locked())
         with cls.activities['lock']:
-            for key, task in cls.activities['handlers'][interval].items():
+            for name, task in cls.activities['handlers'][interval].items():
                 try:
                     task['handler'](app)
                 except Exception as e:
-                    e.add_note(f'Schedule item: {key}')
+                    e.add_note(f'Schedule item: {name}')
                     logger.exception('what?')
         # </>
         return
