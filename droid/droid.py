@@ -42,7 +42,6 @@ class Droid(Core):
         self.emit('droid.SHUTDOWN')
         self.query(['termux-notification-remove', str(nid)])
         for worker in workers: worker.join()
-        logger.debug(self.context['runtime']['contexts'])
         logger.debug('Session ended.')
     # </>
     # <> TCP listener for network events
@@ -53,17 +52,12 @@ class Droid(Core):
             event = event.decode().strip('\n')
             self.emit(event)
     # </>
-    # <> Generate dynamic refresh-time, based on battery status
-    def refresh_wait(self, suggestion, latency):
-        logger.debug('Latency: {}', latency)
-        return time.sleep(suggestion)
-    # </>
     # <> Execute scheduled tasks
     def run_scheduler(self):
         prev = time.time()
-        for sleeptime in self.scheduler.schedule(self):
+        for _ in self.scheduler.schedule(self):
             latency = time.time() - prev
-            self.refresh_wait(sleeptime, latency)
+            logger.debug('Latency: {}', latency)
             if self.terminate.is_set():
                 break
             prev = time.time()
