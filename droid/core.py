@@ -1,5 +1,4 @@
 import time
-import queue
 import socket
 import signal
 import subprocess as sp

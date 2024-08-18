@@ -18,7 +18,6 @@ class AI:
         }
         self.context = {
             'lock': Lock(),
-            'usage': 0,
             'data': {
                 'system': {
                     'role': 'system',
@@ -29,7 +28,7 @@ class AI:
     # </>
 
     # <> query llm
-    def prompt(self, query: str, context :str = 'default', hist_count=2, tool_call=False):
+    def prompt(self, query: str, context :str = 'default', tool_call=False):
         q = {
             'role': 'user',
             'content': '{}'.format(query)
@@ -38,8 +37,7 @@ class AI:
             prepend = list()
             if context not in self.context['data']:
                 self.context['data'][context] = list()
-            else:
-                prepend = self.context['data'][context][0 - hist_count:]
+            prepend = self.context['data'][context]
             out = {
                 'model': self.model,
                 'messages': [self.context['data']['system'], *prepend, q]
@@ -48,17 +46,18 @@ class AI:
                 with self.tools['lock']:
                     out['tools'] = [(i, i.pop('handle'))[0] for i in self.tools['items']]
             # --
-            logger.debug(out['messages'])
             rep = self.session.post(self.endpoint, json=out)
-            logger.debug(rep.json().keys())
             if rep.status_code == 200:
                 response = rep.json()
                 reply = response['choices'][0]
-                self.context['usage'] += reply['total_tokens']
-                print('<<', reply)
-                return reply
+                message = reply['message']
+                stop = reply['finish_reason']
+                self.context['data'][context].append(q)
+                self.context['data'][context].append(message)
+                logger.debug(message)
+                return message, stop
             else:
-                logger.debug(rep.content)
+                logger.warning(rep.content)
     # </>
 
     # <> register a function
@@ -89,6 +88,10 @@ class AI:
 def test(ai):
     ai.prompt("Guess what I've been advised to name my cat.")
     ai.prompt("Whiskers. What do you think?")
+    ai.prompt("Should I get a dog too?")
+    ai.prompt("What should I call him?")
+    ai.prompt("Who is Einstein?")
+    ai.prompt("Can you summarize this conversation?")
     # --
     # params = {}
     # from datetime import datetime
@@ -97,10 +100,8 @@ def test(ai):
 # </>
 
 
-system = """ You are an android personal assistant with access to tools you can call.\
-To load context data from tools, strictly respond with a json object {"TOOLING": tool_name} \
-, picking tool_name from the specified list, and wait for the next prompt before you answer.\
-Accurately provide accurate responses through critical evaluation."""
+system = "If a list of tools is specified in the question and an informed reply cannot be generated without calling one, reply with the best matching tool name, else act like a human. Do not \
+hint on the question in your reply, and do not use vocal illustration in words. Maintain brevity to save usage tokens unless the answer demands an explanation."
 
 # --
 if __name__ == '__main__':

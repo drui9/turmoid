@@ -2,15 +2,15 @@ from droid.tool.schedule import Scheduler
 from droid.tool.watcher import Watchdog
 from droid.tool.sensors import Sensor
 from contextlib import contextmanager
-from filelock import FileLock
 from loguru import logger
 from .core import Core
+from . import toast
 import asyncio
 
 # --
 class Dru(Core):
-    lock = '.turmoid'
     def __init__(self):
+        self.toast = toast
         self.dirmon = Watchdog()
         self.sensor = Sensor(self)
         self.scheduler = Scheduler()
@@ -21,8 +21,7 @@ class Dru(Core):
     @contextmanager
     def session(self):
         try:
-            lock = FileLock(self.lock)
-            with lock: yield
+            yield
         finally:
             self.emit('droid.SHUTDOWN')
             logger.debug('Session ended.')
