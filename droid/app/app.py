@@ -12,7 +12,7 @@ class App(ABC):
         self.close = Event()
         self.foreground = Event()
         self.name = self.__class__.__name__
-        self.data = coreapp.context['runtime']['data']['apps'][self.name]['handle']['data']
+        self.data = coreapp.context['data']['apps'][self.name]['handle']['data']
     # </>
 
     # <> close trigger

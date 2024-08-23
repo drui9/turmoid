@@ -18,6 +18,7 @@ class AI:
         }
         self.context = {
             'lock': Lock(),
+            'tools': False,
             'data': {
                 'system': {
                     'role': 'system',
@@ -28,7 +29,7 @@ class AI:
     # </>
 
     # <> query llm
-    def prompt(self, query: str, context :str = 'default', tool_call=False):
+    def prompt(self, query: str, context :str = 'default'):
         q = {
             'role': 'user',
             'content': '{}'.format(query)
@@ -42,22 +43,21 @@ class AI:
                 'model': self.model,
                 'messages': [self.context['data']['system'], *prepend, q]
             }
-            if tool_call:
+            if self.context['tools']:
                 with self.tools['lock']:
                     out['tools'] = [(i, i.pop('handle'))[0] for i in self.tools['items']]
             # --
             rep = self.session.post(self.endpoint, json=out)
-            if rep.status_code == 200:
-                response = rep.json()
-                reply = response['choices'][0]
-                message = reply['message']
-                stop = reply['finish_reason']
-                self.context['data'][context].append(q)
-                self.context['data'][context].append(message)
-                logger.debug(message)
-                return message, stop
-            else:
-                logger.warning(rep.content)
+            if rep.status_code != 200:
+                raise RuntimeError(rep.content)
+            response = rep.json()
+            reply = response['choices'][0]
+            message = reply['message']
+            stop = reply['finish_reason']
+            self.context['data'][context].append(q)
+            self.context['data'][context].append(message)
+            logger.debug(message)
+            return message, stop
     # </>
 
     # <> register a function
@@ -86,17 +86,18 @@ class AI:
 
 # <> test
 def test(ai):
-    ai.prompt("Guess what I've been advised to name my cat.")
-    ai.prompt("Whiskers. What do you think?")
-    ai.prompt("Should I get a dog too?")
-    ai.prompt("What should I call him?")
-    ai.prompt("Who is Einstein?")
-    ai.prompt("Can you summarize this conversation?")
+    # ai.prompt("Guess what I've been advised to name my cat.")
+    # ai.prompt("Whiskers. What do you think?")
+    # ai.prompt("Should I get a dog too?")
+    # ai.prompt("What should I call him?")
+    # ai.prompt("Who is Einstein?")
+    # ai.prompt("Can you summarize this conversation?")
     # --
-    # params = {}
-    # from datetime import datetime
-    # ai.add_tool('current_time', 'Query datetime string', params)(lambda: datetime.now().ctime())
-    # ai.prompt('What is the time?', tool_call=True)
+    params = {}
+    from datetime import datetime
+    ai.add_tool('current_time', 'Query datetime string', params)(lambda: datetime.now().ctime())
+    ai.context['tools'] = True
+    ai.prompt('What is the time?')
 # </>
 
 

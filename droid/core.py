@@ -6,6 +6,7 @@ from loguru import logger
 from threading import Lock
 from threading import Event
 from .tool.emitter import Emitter
+from contextlib import contextmanager
 
 # --
 class Core(Emitter):
@@ -14,16 +15,10 @@ class Core(Emitter):
             'lock': Lock(),
             'handlers': dict()
         },
-        'runtime': {
-            'call': { # -- unused
-                'name': str(),
-                'args': None,
-                'kwargs': None,
-            },
-            'data': {
-                'apps': dict(),
-                'terminate': Event()
-            }
+        'data': {
+            'apps': dict(),
+            'modules': dict(),
+            'terminate': Event()
         }
     }
     # <> add termux-calls
@@ -44,7 +39,7 @@ class Core(Emitter):
     @classmethod
     def app(cls, *args, **kwargs):
         def wrapper(theapp):
-            data = cls.context['runtime']['data']
+            data = cls.context['data']
             data['apps'] |= {
                 theapp.__name__: {
                     'args': args,
@@ -95,27 +90,14 @@ class Core(Emitter):
     # </>
 
     # <> run a network listener
-    def listen(self, port: int):
+    @contextmanager
+    def listener(self, port: int):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(('127.0.0.1', port))
-        sock.settimeout(10)
+        sock.settimeout(4)
         sock.listen()
-        while not self.stop:
-            conn = -1
-            try:
-                conn, addr = sock.accept()
-                logger.debug('Connection from: {}:{}', addr[0], addr[1])
-                conn.settimeout(3)
-                out = conn.recv(128)
-                conn.send('--close--\n'.encode())
-                conn.close()
-                yield out
-            except socket.timeout:
-                if conn != -1:
-                    conn.send('--close--\n'.encode())
-                    conn.close()
-                continue
+        yield sock
         sock.close()
     # </>
 
@@ -139,13 +121,13 @@ class Core(Emitter):
     # <> check stop
     @property
     def stop(self):
-        return self.context['runtime']['data']['terminate'].is_set()
+        return self.context['data']['terminate'].is_set()
     # </>
 
     # <> shut down
     def shutdown(self, *_, **__):
-        if not self.context['runtime']['data']['terminate'].is_set():
-            self.context['runtime']['data']['terminate'].set()
+        if not self.context['data']['terminate'].is_set():
+            self.context['data']['terminate'].set()
             return logger.debug('Terminated.')
     # </>
 

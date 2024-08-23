@@ -31,7 +31,7 @@ class Dru(Core):
     async def run(self):
         with self.session():
             loop = list()
-            for appname, info in self.context['runtime']['data']['apps'].items():
+            for appname, info in self.context['data']['apps'].items():
                 args = self, *info['args']
                 kwargs = info['kwargs']
                 # --

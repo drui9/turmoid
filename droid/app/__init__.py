@@ -1,7 +1,4 @@
-# <> import modules
-# from .music import Music
-from .torch import Torch
-# from .talk import Talk
+# <> import apps
 from .home import Home
 # </>
 
