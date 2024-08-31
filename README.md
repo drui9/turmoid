@@ -68,6 +68,35 @@ Integrations:
     - Drive API - document storage
 ```
 
+# snippets
+```Python
+    # <> session manager
+    @contextmanager
+    def session(self):
+        modpath = self.app.modules['init']['path']
+        modules = glob(os.path.join(modpath, '*.py'))
+        loader = self.app.modules['init']['loader']
+        loader(modules, self.app)
+        with self.app.listener(self.notice) as note:
+            mods = self.app.modules['loaded']
+            for mod in mods:
+                md = mods[mod]
+                hsh = md['hash']
+                nc = f'nc localhost {self.notice}'
+                btn1 = ['--button1', 'Start', '--button1-action', f'echo {hsh}-start | {nc}']
+                btn2 = ['--button2', 'Stop', '--button2-action', f'echo {hsh}-stop | {nc}']
+                btn3 = ['--button3', 'Send', '--button3-action', f'echo $REPLY | {nc}']
+                cnt = ['-c', 'Stopped', *btn1, *btn2, *btn3]
+                args = ['-t', mod.split('/')[-1], '-i', hsh, '--ongoing', '--alert-once', *cnt]
+                self.app.query(['termux-notification', *args])
+            yield note
+            for mod in mods.values():
+                self.app.query(['termux-notification-remove', mod['hash']])
+        self.app.shutdown()
+    # </>
+
+```
+
 # Note
 This project is in early development stage. Contributions and donation requests are welcome!
 

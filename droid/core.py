@@ -59,6 +59,7 @@ class Core(Emitter):
     def __init__(self):
         super().__init__()
         signal.signal(signal.SIGINT, self.shutdown)
+        self.modules = self.context['data']['modules']
     # </>
 
     # <> call a termux method
@@ -91,11 +92,11 @@ class Core(Emitter):
 
     # <> run a network listener
     @contextmanager
-    def listener(self, port: int):
+    def listener(self, port: int, timeout=3):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(('127.0.0.1', port))
-        sock.settimeout(4)
+        sock.settimeout(timeout)
         sock.listen()
         yield sock
         sock.close()
