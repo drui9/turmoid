@@ -2,10 +2,10 @@ from droid.tool.schedule import Scheduler
 from droid.tool.watcher import Watchdog
 from droid.tool.sensors import Sensor
 from contextlib import contextmanager
+from threading import Thread
 from loguru import logger
 from .core import Core
 from . import toast
-import asyncio
 
 # --
 class Dru(Core):
@@ -30,16 +30,17 @@ class Dru(Core):
     # <> main loop
     async def run(self):
         with self.session():
-            loop = list()
+            enter = None
             for appname, info in self.context['data']['apps'].items():
                 args = self, *info['args']
                 kwargs = info['kwargs']
                 # --
                 info['handle']['instance'] = info['handle']['enter'](*args, **kwargs)
                 app = info['handle']['instance']
-                loop.append(app.start())
-                logger.debug('Initialized {}', appname)
-            # -- runtime loop
-            await asyncio.gather(*loop)
+                logger.debug('Initializing {}...', appname)
+                if appname == 'Home':
+                    enter = app.start
+                    continue
+            if enter: enter()
     # </> --end--
 

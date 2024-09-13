@@ -9,7 +9,7 @@ import os
 # --
 if __name__ == '__main__':
     logger.remove()
-    fmt = "{line:4}|{level:6}|{message}"
+    fmt = "{line:4}| [{file}:{level:6}] > {message}"
     parser = ArgumentParser(prog='Turmoid')
     parser.add_argument('--mode', type=str, default='dev', help='Program running mode.')
     parser.add_argument('--modules', type=str, default='mod', help='Modules path.')

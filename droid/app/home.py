@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from threading import Event, Thread
 from glob import glob
 from droid import Dru
 from .app import App
@@ -12,6 +13,14 @@ class Home(App):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.notice = 4040
+        self.scroll = {
+            'selected': False,
+            'data': {
+                'index': 0,
+                'listed': None,
+                'updated': Event()
+            }
+        }
     # </>
 
     # <> session manager
@@ -38,19 +47,13 @@ class Home(App):
                     await asyncio.sleep(1)
     # </>
 
-    # <> runtime
-    async def runtime(self):
-        while not self.stop:
-            self.log.debug(self.app.modules["loaded"])
-            self.quit()
-    # </>
-
     # <> start
-    async def start(self):
-        self.foreground.set()
+    def start(self):
+        self.state['foreground'].set()
         while not self.stop:
             with self.session():
-                await asyncio.gather(self.reactor(), self.runtime())
+                self.log.debug(self.scroll)
+                break
     # </>
 
     # <> shutdown

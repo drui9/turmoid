@@ -9,7 +9,7 @@ class AI:
     endpoint = 'https://api.groq.com/openai/v1/chat/completions'
     # <> constructor
     def __init__(self, key: str, system_message: str):
-        assert key, 'Missing key!'
+        assert key, 'Api key is missing!'
         self.session = requests.session()
         self.session.headers = { 'Authorization': 'Bearer {}'.format(key) }
         self.tools = {
@@ -107,6 +107,6 @@ hint on the question in your reply, and do not use vocal illustration in words. 
 # --
 if __name__ == '__main__':
     load_dotenv()
-    ai = AI(os.getenv('GROQKEY'), system)
+    ai = AI(os.getenv('GROQKEY', ''), system)
     test(ai)
 
