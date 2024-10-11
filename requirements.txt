@@ -1,3 +1,9 @@
 python-dotenv>=1.0.1
-requests>=2.32.2
-watchdog>=4.0.1
+alive-progress>=3.1.5
+pycryptodomex>=3.21.0
+yt-dlp>=2024.10.7
+music-tag>=0.4.3
+requests>=2.32.3
+websockets>=13.1
+watchdog>=5.0.3
+loguru>=0.7.2
