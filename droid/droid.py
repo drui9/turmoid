@@ -2,7 +2,6 @@ from droid.tool.schedule import Scheduler
 from droid.tool.watcher import Watchdog
 from droid.tool.sensors import Sensor
 from contextlib import contextmanager
-from threading import Thread
 from loguru import logger
 from .core import Core
 from . import toast
