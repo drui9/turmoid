@@ -1,0 +1,11 @@
+Digital Repo
+Ranked music
+Cava admin
+
+Workflow:
+    Home app actions
+        - List modules
+        - Launch & suspend modules
+        - List apps
+        - Control app io using foreground context
+

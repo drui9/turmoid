@@ -51,7 +51,8 @@ class Home(App):
     def start(self):
         self.state['foreground'].set()
         while not self.stop:
-            with self.session():
+            with self.session(): # loads modules
+                self.log.debug(self.app.modules)
                 self.log.debug(self.scroll)
                 break
     # </>

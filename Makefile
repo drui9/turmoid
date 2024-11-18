@@ -1,19 +1,20 @@
 env := .venv
-src := start.py
+enter := start.py
 deps := requirements.txt
-prod := module
+prodmodules := module
+devmodules:= mod
 
-run: $(src)
-	@$(env)/bin/python $(src)
+run: $(env) $(enter)
+	@$(env)/bin/python $(enter) --modules $(devmodules)
 
-live: $(src)
-	@$(env)/bin/python $(src) --mode live --modules $(prod)
+live: $(env) $(enter)
+	@$(env)/bin/python $(enter) --mode live --modules $(prodmodules)
 
-install: $(env)
-	@$(env)/bin/pip install -r $(deps)
+test:
+	$(env)/bin/python -m unittest
 
-$(env):
-	python -m venv $@
+$(env): $(deps)
+	./install.sh; touch $(env)
 
 clean:
 	@rm -rf **/__pycache__ **/**/__pycache__ **/**/**/__pycache__ logs
