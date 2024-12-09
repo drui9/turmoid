@@ -14,12 +14,9 @@ class Home(App):
         super().__init__(*args, **kwargs)
         self.notice = 4040
         self.scroll = {
-            'selected': False,
-            'data': {
-                'index': 0,
-                'listed': None,
-                'updated': Event()
-            }
+            'index': 0,
+            'listed': None,
+            'updated': Event()
         }
     # </>
 
@@ -29,7 +26,12 @@ class Home(App):
         modpath = self.app.modules['init']['path']
         modules = glob(os.path.join(modpath, '*.py'))
         loader = self.app.modules['init']['loader']
-        yield loader(modules, self.app)
+        old, new = loader(modules, self.app)
+        self.scroll['listed'] = list(new.keys())
+        if old:
+            self.log.debug('todo: Check old vs new modules diff')
+        # --
+        yield
     # </>
 
     # <> react to notice & inputs
@@ -47,18 +49,62 @@ class Home(App):
                     await asyncio.sleep(1)
     # </>
 
+    # --<> background: launch foreground task
+    @contextmanager
+    def background(self, appname):
+        def run(appname):
+            print(appname)
+        try:
+            self.state['foreground'].clear()
+            worker = Thread(target=run, args=(appname,))
+            yield worker
+            worker.join()
+            # todo: wait for module foreground, else foreground self
+        finally:
+            self.state['foreground'].set()
+    # </>
+
     # <> start
     def start(self):
         self.state['foreground'].set()
-        while not self.stop:
-            with self.session(): # loads modules
-                self.log.debug(self.app.modules)
-                self.log.debug(self.scroll)
-                break
+        reset = False
+        try:
+            while not self.stop:
+                with self.session(): # loads modules
+                    reset = False
+                    while (not self.stop) and (not reset):
+                        # -- publish state
+                        index = self.scroll['index']
+                        appname = self.scroll['listed'][index]
+                        print('name:', appname)
+                        print('selected:', not self.state['foreground'].is_set())
+                        print('index:', index)
+                        # -- io
+                        cmd = str(input('>> '))
+                        if cmd.lower() == 'q':
+                            self.quit()
+                            break
+                        if self.state['foreground'].is_set():
+                            match cmd:
+                                case 'prev':
+                                    self.scroll['index'] = (index - 1) % len(self.scroll['listed'])
+                                case 'next':
+                                    self.scroll['index'] = (index + 1) % len(self.scroll['listed'])
+                                case 'ok':
+                                    with self.background(appname) as worker:
+                                        worker.daemon = True
+                                        worker.start()
+                                case 'r':
+                                    reset = True
+                        else:
+                            print('module data')
+        finally:
+            self.quit()
     # </>
 
     # <> shutdown
     def quit(self):
+        """Terminate application."""
         super().quit()
         self.app.shutdown()
     # </>

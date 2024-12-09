@@ -17,8 +17,9 @@ class App(ABC):
         self.data = coreapp.context['data']['apps'][self.name]['handle']['data']
     # </>
 
-    # <> close trigger
+    # <> quit app
     def quit(self):
+        """Trigger app close"""
         self.state['foreground'].clear()
         return self.state['close'].set()
     # </>
@@ -26,6 +27,7 @@ class App(ABC):
     # <> check close
     @property
     def stop(self):
+        """Check if terminate is triggered"""
         if self.app.stop:
             self.quit()
         return self.state['close'].is_set()
@@ -34,6 +36,7 @@ class App(ABC):
     # <> force implementation on children
     @abstractmethod
     def start(self, *args, **kwargs):
-        pass
+        """Start app"""
+        if self.stop: self.state['close'].clear()
     # </>
 

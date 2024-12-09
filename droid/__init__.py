@@ -19,15 +19,18 @@ from droid.app import *
 
 # <> load modules
 def loadmods(paths, app):
-    mods = app.modules['loaded']
+    old = app.modules['loaded']
+    new = dict()
     for pth in paths:
         with open(pth, "rb") as md:
             src = md.read()
             hashed = md5(src).hexdigest()
-            mods[pth] = {
+            new[pth] = {
                 'hash': hashed,
                 'src': b64encode(src).hex()
             }
+    app.modules['loaded'] = new
+    return old, new
 # </>
 
 # <> create app
