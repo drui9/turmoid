@@ -1,4 +1,7 @@
-<img width="96" src="turmoid.png" alt="Turmoid project icon">
+<p align="center">
+    <img width="128" src="turmoid.png" alt="Turmoid project icon">
+</p>
+
 ```monospace
 Food for thought:
 You quickly realize you can do anything. That the only limitation to doing everything is time.
@@ -98,5 +101,5 @@ Integrations:
 ```
 
 # Note
-This project is in early development stage. Contributions and donation requests are welcome!
+This project is in early development stage. Contributions and donations are welcome!
 
